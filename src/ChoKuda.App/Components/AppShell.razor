@@ -1,0 +1,123 @@
+@namespace ChoKuda.App.Components
+@implements IDisposable
+@inject AppShellState ShellState
+
+<main class="@ShellClass">
+    @if (ShellState.IsLeftPanelCollapsed)
+    {
+        <aside class="left-rail">
+            <button class="icon-button" title="Open navigation" @onclick="ShellState.ToggleLeftPanel">Menu</button>
+        </aside>
+    }
+    else
+    {
+        <aside class="left-panel">
+            <header class="panel-header">
+                <div>
+                    <h1>ChoKuda</h1>
+                    <p>Travel places bank</p>
+                </div>
+                <button class="icon-button" title="Collapse navigation" @onclick="ShellState.ToggleLeftPanel">Hide</button>
+            </header>
+
+            <section class="panel-section">
+                <h2>Search</h2>
+                <div class="search-row">
+                    <input placeholder="Search places" disabled />
+                    <button disabled>Search</button>
+                </div>
+            </section>
+
+            <section class="panel-section">
+                <h2>Search Results</h2>
+                <p class="muted">No active search.</p>
+            </section>
+
+            <section class="panel-section collections-section">
+                <h2>Collections</h2>
+                <button class="secondary-button" disabled>+ Collection</button>
+                <p class="muted">Collection management starts in Milestone 6.</p>
+            </section>
+
+            <section class="panel-section tags-section">
+                <h2>Tags</h2>
+                <input value="#hardmode #safe #rentcar" disabled />
+            </section>
+        </aside>
+    }
+
+    <section class="map-stage">
+        <div class="map-placeholder">
+            <strong>Map placeholder</strong>
+            <span>Leaflet and Stadia raster tiles start in Milestone 4.</span>
+        </div>
+        <button class="preview-button" @onclick="ShellState.OpenRightPanelPreview">Open right panel preview</button>
+    </section>
+
+    @if (ShellState.IsRightPanelOpen)
+    {
+        <aside class="right-panel">
+            <header class="panel-header">
+                <div>
+                    <h2>Point panel</h2>
+                    <p>Layout preview only</p>
+                </div>
+                <button class="icon-button" title="Close point panel" @onclick="ShellState.CloseRightPanel">Close</button>
+            </header>
+
+            <section class="panel-section">
+                <label>
+                    Title
+                    <input value="New point" disabled />
+                </label>
+            </section>
+
+            <section class="panel-section">
+                <h3>Description</h3>
+                <textarea disabled>Plain text description placeholder.</textarea>
+            </section>
+
+            <section class="panel-section">
+                <h3>Photos</h3>
+                <div class="empty-box">Photo grid placeholder</div>
+            </section>
+
+            <section class="panel-section">
+                <h3>Files</h3>
+                <div class="empty-box">File list placeholder</div>
+            </section>
+        </aside>
+    }
+
+    <footer class="status-bar">
+        <span>Visible: 0 / Total: 0</span>
+        <span>Filters: none</span>
+        <div class="status-action">
+            <span class="muted">No map point selected</span>
+            <button disabled>Add point</button>
+        </div>
+    </footer>
+</main>
+
+@code {
+    private string ShellClass =>
+        ShellState.IsLeftPanelCollapsed
+            ? "app-shell left-collapsed"
+            : "app-shell";
+
+    protected override void OnInitialized()
+    {
+        ShellState.Changed += HandleStateChanged;
+    }
+
+    public void Dispose()
+    {
+        ShellState.Changed -= HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+}
+

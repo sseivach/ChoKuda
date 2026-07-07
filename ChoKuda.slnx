@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ChoKuda.App/ChoKuda.App.csproj" />
+    <Project Path="src/ChoKuda.Core/ChoKuda.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ChoKuda.Core.Tests/ChoKuda.Core.Tests.csproj" />
+  </Folder>
+</Solution>

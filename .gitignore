@@ -1,0 +1,54 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+out/
+artifacts/
+
+# Test output and coverage
+[Tt]est[Rr]esults/
+coverage/
+coverage.*.xml
+*.coverage
+*.coveragexml
+*.trx
+
+# .NET user/local files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+project.lock.json
+project.assets.json
+
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.VC.opendb
+*.cache
+*.ilk
+*.log
+*.pdb
+*.ipch
+
+# Rider / ReSharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ChoKuda local runtime data
+ChoKudaLibrary/
+library/
+appsettings.local.json
+
