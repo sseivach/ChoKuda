@@ -754,6 +754,8 @@ Definition of Done для каждого шага реализации:
 
 ### Milestone 2: File Library
 
+Статус реализации: выполнено.
+
 Цель:
 
 - Реализовать файловую библиотеку ChoKuda.
@@ -792,7 +794,17 @@ Definition of Done для каждого шага реализации:
 - Тесты обработки отсутствующих папок.
 - Тесты обработки битого JSON.
 
+Результат проверки:
+
+- `dotnet build ChoKuda.slnx` проходит.
+- `dotnet test ChoKuda.slnx` проходит.
+- `dotnet test ChoKuda.slnx --collect:"XPlat Code Coverage"` проходит.
+- Launch smoke: приложение стартует и не падает в первые 5 секунд.
+- Coverage собственной Core-логики Milestone 2: 100% line, 100% branch.
+
 ### Milestone 3: Domain Rules
+
+Статус реализации: выполнено.
 
 Цель:
 
@@ -826,7 +838,17 @@ Definition of Done для каждого шага реализации:
 - 100% покрытие правил обязательных полей.
 - 100% покрытие генерации имен вложений.
 
+Результат проверки:
+
+- `dotnet build ChoKuda.slnx` проходит.
+- `dotnet test ChoKuda.slnx` проходит.
+- `dotnet test ChoKuda.slnx --collect:"XPlat Code Coverage"` проходит.
+- Launch smoke: приложение стартует и не падает в первые 5 секунд.
+- Coverage собственной Core-логики Milestone 3: 100% line, 100% branch.
+
 ### Milestone 4: Map Integration
+
+Статус реализации: выполнено.
 
 Цель:
 
@@ -863,6 +885,27 @@ Definition of Done для каждого шага реализации:
 
 - Unit-тесты C#-слоя подготовки данных для карты.
 - JS interop держим тонким; критичную логику не прячем в JS.
+
+Результат реализации:
+
+- Подключен Leaflet через Blazor JS interop.
+- Подключены Stadia raster tiles `alidade_smooth`.
+- Подключен Leaflet.markercluster.
+- Карта требует Stadia API key и сохраняет его в `%APPDATA%\ChoKuda\appsettings.json`.
+- Если ключ не задан, приложение показывает секцию ввода ключа вместо карты.
+- Сохраненные точки из JSON библиотеки проецируются в пины карты.
+- Клик по карте ставит/переносит временный маркер и обновляет координаты в нижней панели.
+- `Esc` сбрасывает выбранные координаты и временный маркер.
+- Клик по сохраненному пину открывает правую панель и сбрасывает временный маркер.
+- Клик по кластеру делает `fitBounds` с padding 10%.
+
+Результат проверки:
+
+- `dotnet build ChoKuda.slnx` проходит.
+- `dotnet test ChoKuda.slnx` проходит: 69/69 tests.
+- `dotnet test tests\ChoKuda.Core.Tests\ChoKuda.Core.Tests.csproj --collect:"XPlat Code Coverage"` проходит.
+- Coverage собственной Core-логики: 100% line, 100% branch.
+- Launch smoke: приложение стартует и не падает в первые 8 секунд.
 
 ### Milestone 5: Point CRUD
 

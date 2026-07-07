@@ -1,0 +1,111 @@
+@namespace ChoKuda.App.Components
+@implements IAsyncDisposable
+@inject IJSRuntime JsRuntime
+
+<div id="@_mapElementId" class="leaflet-map"></div>
+
+@code {
+    private readonly string _mapElementId = $"map-{Guid.NewGuid():N}";
+    private DotNetObjectReference<MapView>? _dotNetReference;
+    private IJSObjectReference? _module;
+    private bool _initialized;
+
+    [Parameter]
+    public string ApiKey { get; set; } = string.Empty;
+
+    [Parameter]
+    public IReadOnlyList<MapPoint> Points { get; set; } = Array.Empty<MapPoint>();
+
+    [Parameter]
+    public MapCoordinate? TemporaryMarker { get; set; }
+
+    [Parameter]
+    public EventCallback<MapCoordinate> OnMapClick { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnPointClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnEscape { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _dotNetReference = DotNetObjectReference.Create(this);
+        _module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/mapInterop.js");
+        await _module.InvokeVoidAsync("initMap", _mapElementId, ApiKey, _dotNetReference);
+        _initialized = true;
+        await SyncMapAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_initialized)
+        {
+            await SyncMapAsync();
+        }
+    }
+
+    [JSInvokable]
+    public async Task HandleMapClick(double latitude, double longitude)
+    {
+        await OnMapClick.InvokeAsync(new MapCoordinate
+        {
+            Latitude = latitude,
+            Longitude = longitude,
+        });
+    }
+
+    [JSInvokable]
+    public async Task HandlePointClick(string pointId)
+    {
+        if (Guid.TryParse(pointId, out var parsedPointId))
+        {
+            await OnPointClick.InvokeAsync(parsedPointId);
+        }
+    }
+
+    [JSInvokable]
+    public async Task HandleEscape()
+    {
+        await OnEscape.InvokeAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("disposeMap", _mapElementId);
+            await _module.DisposeAsync();
+        }
+
+        _dotNetReference?.Dispose();
+    }
+
+    private async Task SyncMapAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        await _module.InvokeVoidAsync("setPoints", _mapElementId, Points);
+
+        if (TemporaryMarker is null)
+        {
+            await _module.InvokeVoidAsync("clearTemporaryMarker", _mapElementId);
+        }
+        else
+        {
+            await _module.InvokeVoidAsync(
+                "setTemporaryMarker",
+                _mapElementId,
+                TemporaryMarker.Latitude,
+                TemporaryMarker.Longitude);
+        }
+    }
+}

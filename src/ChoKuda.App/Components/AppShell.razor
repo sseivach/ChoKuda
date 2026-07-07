@@ -1,6 +1,11 @@
 @namespace ChoKuda.App.Components
 @implements IDisposable
 @inject AppShellState ShellState
+@inject AppEnvironmentPaths EnvironmentPaths
+@inject AppSettingsService AppSettingsService
+@inject FileLibraryService FileLibraryService
+@inject ILibraryFolderPicker LibraryFolderPicker
+@inject IApplicationShutdown ApplicationShutdown
 
 <main class="@ShellClass">
     @if (ShellState.IsLeftPanelCollapsed)
@@ -47,11 +52,42 @@
     }
 
     <section class="map-stage">
-        <div class="map-placeholder">
-            <strong>Map placeholder</strong>
-            <span>Leaflet and Stadia raster tiles start in Milestone 4.</span>
-        </div>
-        <button class="preview-button" @onclick="ShellState.OpenRightPanelPreview">Open right panel preview</button>
+        @if (IsLibraryReady)
+        {
+            @if (HasStadiaApiKey)
+            {
+                <MapView ApiKey="@StadiaApiKey"
+                         Points="@_mapPoints"
+                         TemporaryMarker="@_selectedCoordinate"
+                         OnMapClick="HandleMapClick"
+                         OnPointClick="HandlePointClick"
+                         OnEscape="ClearSelectedCoordinate" />
+            }
+            else
+            {
+                <div class="library-setup">
+                    <h2>Stadia Maps API key required</h2>
+                    <p>Add your Stadia Maps API key to load the online map.</p>
+                    <input @bind="_stadiaApiKeyInput" placeholder="Stadia API key" />
+                    <div class="setup-actions">
+                        <button @onclick="SaveStadiaApiKey">Save API key</button>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="library-setup">
+                <h2>@LibrarySetupTitle</h2>
+                <p>@LibrarySetupMessage</p>
+                <code>@DefaultLibraryPath</code>
+                <div class="setup-actions">
+                    <button @onclick="CreateDefaultLibrary">Create default library</button>
+                    <button @onclick="ChooseLibrary">Choose folder</button>
+                    <button @onclick="ApplicationShutdown.Shutdown">Exit</button>
+                </div>
+            </div>
+        }
     </section>
 
     @if (ShellState.IsRightPanelOpen)
@@ -90,16 +126,52 @@
     }
 
     <footer class="status-bar">
-        <span>Visible: 0 / Total: 0</span>
-        <span>Filters: none</span>
+        <span>Visible: @_mapPoints.Count / Total: @_mapPoints.Count</span>
+        <span>@StatusMessage</span>
         <div class="status-action">
-            <span class="muted">No map point selected</span>
-            <button disabled>Add point</button>
+            <span class="muted">@SelectedCoordinateStatus</span>
+            <button disabled="@IsAddPointDisabled" @onclick="ShellState.OpenRightPanelPreview">Add point</button>
         </div>
     </footer>
 </main>
 
 @code {
+    private AppSettings _appSettings = new();
+    private IReadOnlyList<MapPoint> _mapPoints = Array.Empty<MapPoint>();
+    private MapCoordinate? _selectedCoordinate;
+    private string _stadiaApiKeyInput = string.Empty;
+    private int _pointLoadErrorCount;
+
+    private bool IsLibraryReady { get; set; }
+
+    private string? LibraryPath { get; set; }
+
+    private string DefaultLibraryPath => EnvironmentPaths.DefaultLibraryPath;
+
+    private string LibrarySetupTitle { get; set; } = "Choose ChoKuda library";
+
+    private string LibrarySetupMessage { get; set; } =
+        "Create a new library in the default location or choose an existing library folder.";
+
+    private bool HasStadiaApiKey =>
+        !string.IsNullOrWhiteSpace(_appSettings.StadiaApiKey);
+
+    private string StadiaApiKey =>
+        _appSettings.StadiaApiKey ?? string.Empty;
+
+    private bool IsAddPointDisabled =>
+        !IsLibraryReady || _selectedCoordinate is null || ShellState.IsRightPanelOpen;
+
+    private string SelectedCoordinateStatus =>
+        _selectedCoordinate is null
+            ? "No map point selected"
+            : $"{_selectedCoordinate.Latitude:F5}, {_selectedCoordinate.Longitude:F5}";
+
+    private string StatusMessage =>
+        _pointLoadErrorCount == 0
+            ? "Filters: none"
+            : $"Filters: none | Point JSON errors: {_pointLoadErrorCount}";
+
     private string ShellClass =>
         ShellState.IsLeftPanelCollapsed
             ? "app-shell left-collapsed"
@@ -108,6 +180,7 @@
     protected override void OnInitialized()
     {
         ShellState.Changed += HandleStateChanged;
+        LoadLibraryState();
     }
 
     public void Dispose()
@@ -119,5 +192,98 @@
     {
         _ = InvokeAsync(StateHasChanged);
     }
-}
 
+    private void LoadLibraryState()
+    {
+        _appSettings = AppSettingsService.Load();
+        _stadiaApiKeyInput = _appSettings.StadiaApiKey ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_appSettings.LibraryPath))
+        {
+            IsLibraryReady = false;
+            LibraryPath = null;
+            LibrarySetupTitle = "Choose ChoKuda library";
+            LibrarySetupMessage = "Create a new library in the default location or choose an existing library folder.";
+            return;
+        }
+
+        if (!Directory.Exists(_appSettings.LibraryPath))
+        {
+            IsLibraryReady = false;
+            LibraryPath = _appSettings.LibraryPath;
+            LibrarySetupTitle = "Library not found";
+            LibrarySetupMessage = "The saved ChoKuda library folder is missing or unavailable.";
+            return;
+        }
+
+        FileLibraryService.EnsureLibrary(_appSettings.LibraryPath);
+        IsLibraryReady = true;
+        LibraryPath = _appSettings.LibraryPath;
+        LoadMapPoints();
+    }
+
+    private void CreateDefaultLibrary()
+    {
+        UseLibrary(DefaultLibraryPath);
+    }
+
+    private void ChooseLibrary()
+    {
+        var selectedPath = LibraryFolderPicker.PickFolder(LibraryPath ?? DefaultLibraryPath);
+
+        if (!string.IsNullOrWhiteSpace(selectedPath))
+        {
+            UseLibrary(selectedPath);
+        }
+    }
+
+    private void UseLibrary(string libraryPath)
+    {
+        FileLibraryService.EnsureLibrary(libraryPath);
+        _appSettings.LibraryPath = libraryPath;
+        AppSettingsService.Save(_appSettings);
+        IsLibraryReady = true;
+        LibraryPath = libraryPath;
+        LoadMapPoints();
+    }
+
+    private void LoadMapPoints()
+    {
+        if (string.IsNullOrWhiteSpace(LibraryPath))
+        {
+            _mapPoints = Array.Empty<MapPoint>();
+            _pointLoadErrorCount = 0;
+            return;
+        }
+
+        var paths = new FileLibraryPaths(LibraryPath);
+        var pointsResult = FileLibraryService.LoadPoints(paths);
+        _mapPoints = MapPointProjection.FromPointDocuments(pointsResult.Items);
+        _pointLoadErrorCount = pointsResult.Errors.Count;
+    }
+
+    private void SaveStadiaApiKey()
+    {
+        _appSettings.StadiaApiKey = string.IsNullOrWhiteSpace(_stadiaApiKeyInput)
+            ? null
+            : _stadiaApiKeyInput.Trim();
+
+        AppSettingsService.Save(_appSettings);
+    }
+
+    private void HandleMapClick(MapCoordinate coordinate)
+    {
+        _selectedCoordinate = coordinate;
+    }
+
+    private void HandlePointClick(Guid pointId)
+    {
+        _selectedCoordinate = null;
+        ShellState.OpenRightPanelPreview();
+    }
+
+    private void ClearSelectedCoordinate()
+    {
+        _selectedCoordinate = null;
+    }
+}
