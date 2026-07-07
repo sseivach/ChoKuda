@@ -67,8 +67,16 @@ public sealed class FileLibraryServiceTests
         Assert.Equal(point.TagsText, loadedPoint.TagsText);
         Assert.Equal(point.Photos, loadedPoint.Photos);
         Assert.Equal(point.Files, loadedPoint.Files);
-        Assert.Equal(point.CreatedAt, loadedPoint.CreatedAt);
-        Assert.Equal(point.UpdatedAt, loadedPoint.UpdatedAt);
+
+        var json = File.ReadAllText(paths.GetPointFilePath(point.Id));
+        Assert.Contains("\"address\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"description\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"collection_ids\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"primary_collection_id\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"tags\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("addressRegion", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("descriptionText", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("tagsText", json, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -186,8 +194,6 @@ public sealed class FileLibraryServiceTests
         Assert.Equal(string.Empty, point.TagsText);
         Assert.Empty(point.Photos);
         Assert.Empty(point.Files);
-        Assert.Equal(default, point.CreatedAt);
-        Assert.Equal(default, point.UpdatedAt);
 
         Assert.Equal(Guid.Empty, collection.Id);
         Assert.Equal(string.Empty, collection.Name);
@@ -217,8 +223,6 @@ public sealed class FileLibraryServiceTests
             TagsText = "#waterfall #hike",
             Photos = ["waterfall__33333333-3333-3333-3333-333333333333.jpg"],
             Files = ["permit__44444444-4444-4444-4444-444444444444.pdf"],
-            CreatedAt = DateTimeOffset.Parse("2026-07-07T10:00:00-04:00"),
-            UpdatedAt = DateTimeOffset.Parse("2026-07-07T10:30:00-04:00"),
         };
     }
 
@@ -236,4 +240,3 @@ public sealed class FileLibraryServiceTests
         };
     }
 }
-

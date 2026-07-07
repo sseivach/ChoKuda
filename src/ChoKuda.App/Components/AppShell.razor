@@ -4,8 +4,10 @@
 @inject AppEnvironmentPaths EnvironmentPaths
 @inject AppSettingsService AppSettingsService
 @inject FileLibraryService FileLibraryService
+@inject PointService PointService
 @inject ILibraryFolderPicker LibraryFolderPicker
 @inject IApplicationShutdown ApplicationShutdown
+@inject IJSRuntime JsRuntime
 
 <main class="@ShellClass">
     @if (ShellState.IsLeftPanelCollapsed)
@@ -90,38 +92,102 @@
         }
     </section>
 
-    @if (ShellState.IsRightPanelOpen)
+    @if (ShellState.IsRightPanelOpen && _pointForm is not null)
     {
         <aside class="right-panel">
             <header class="panel-header">
                 <div>
-                    <h2>Point panel</h2>
-                    <p>Layout preview only</p>
+                    <h2>@PointPanelTitle</h2>
+                    <p>@PointPanelSubtitle</p>
                 </div>
-                <button class="icon-button" title="Close point panel" @onclick="ShellState.CloseRightPanel">Close</button>
+                <button class="icon-button" title="Close point panel" @onclick="ClosePointPanel">Close</button>
             </header>
 
             <section class="panel-section">
                 <label>
                     Title
-                    <input value="New point" disabled />
+                    <input @bind="_pointForm.Title" />
+                </label>
+                @if (!string.IsNullOrWhiteSpace(_titleError))
+                {
+                    <p class="field-error">@_titleError</p>
+                }
+            </section>
+
+            <section class="panel-section">
+                <h3>Coordinates</h3>
+                <div class="coordinate-grid">
+                    <label>
+                        Latitude
+                        <input value="@_pointForm.Latitude.ToString("F6")" readonly />
+                    </label>
+                    <label>
+                        Longitude
+                        <input value="@_pointForm.Longitude.ToString("F6")" readonly />
+                    </label>
+                </div>
+            </section>
+
+            <section class="panel-section">
+                <label>
+                    Address / Region
+                    <input @bind="_pointForm.AddressRegion" />
                 </label>
             </section>
 
             <section class="panel-section">
                 <h3>Description</h3>
-                <textarea disabled>Plain text description placeholder.</textarea>
+                <textarea @bind="_pointForm.DescriptionText"></textarea>
+            </section>
+
+            <section class="panel-section">
+                <label>
+                    Tags
+                    <input @bind="_pointForm.TagsText" placeholder="#hardmode #safe #rentcar" />
+                </label>
+                @if (!string.IsNullOrWhiteSpace(_tagsError))
+                {
+                    <p class="field-error">@_tagsError</p>
+                }
+            </section>
+
+            <section class="panel-section">
+                <h3>Collections</h3>
+                <div class="empty-box">Collection picker starts in Milestone 6.</div>
             </section>
 
             <section class="panel-section">
                 <h3>Photos</h3>
-                <div class="empty-box">Photo grid placeholder</div>
+                <div class="empty-box">Photo import starts in Milestone 8.</div>
             </section>
 
             <section class="panel-section">
                 <h3>Files</h3>
-                <div class="empty-box">File list placeholder</div>
+                <div class="empty-box">File import starts in Milestone 8.</div>
             </section>
+
+            @if (!string.IsNullOrWhiteSpace(_generalError))
+            {
+                <p class="field-error">@_generalError</p>
+            }
+
+            @if (_deleteErrors.Count > 0)
+            {
+                <div class="error-box">
+                    @foreach (var error in _deleteErrors)
+                    {
+                        <p>@error</p>
+                    }
+                </div>
+            }
+
+            <div class="panel-actions">
+                <button @onclick="SavePoint">Save</button>
+                @if (!_isNewPoint)
+                {
+                    <button class="danger-button" @onclick="DeletePoint">Delete</button>
+                }
+            </div>
         </aside>
     }
 
@@ -130,7 +196,7 @@
         <span>@StatusMessage</span>
         <div class="status-action">
             <span class="muted">@SelectedCoordinateStatus</span>
-            <button disabled="@IsAddPointDisabled" @onclick="ShellState.OpenRightPanelPreview">Add point</button>
+            <button disabled="@IsAddPointDisabled" @onclick="OpenNewPointPanel">Add point</button>
         </div>
     </footer>
 </main>
@@ -139,8 +205,15 @@
     private AppSettings _appSettings = new();
     private IReadOnlyList<MapPoint> _mapPoints = Array.Empty<MapPoint>();
     private MapCoordinate? _selectedCoordinate;
+    private PointDocument? _pointForm;
+    private PointDocument? _savedPointSnapshot;
     private string _stadiaApiKeyInput = string.Empty;
+    private string? _titleError;
+    private string? _tagsError;
+    private string? _generalError;
+    private IReadOnlyList<string> _deleteErrors = Array.Empty<string>();
     private int _pointLoadErrorCount;
+    private bool _isNewPoint;
 
     private bool IsLibraryReady { get; set; }
 
@@ -167,6 +240,12 @@
             ? "No map point selected"
             : $"{_selectedCoordinate.Latitude:F5}, {_selectedCoordinate.Longitude:F5}";
 
+    private string PointPanelTitle =>
+        _isNewPoint ? "New point" : "Edit point";
+
+    private string PointPanelSubtitle =>
+        _isNewPoint ? "Unsaved draft" : "Saved point";
+
     private string StatusMessage =>
         _pointLoadErrorCount == 0
             ? "Filters: none"
@@ -176,6 +255,10 @@
         ShellState.IsLeftPanelCollapsed
             ? "app-shell left-collapsed"
             : "app-shell";
+
+    private bool HasUnsavedPointChanges =>
+        _pointForm is not null &&
+        (_isNewPoint || !PointDocumentsEqual(_pointForm, _savedPointSnapshot));
 
     protected override void OnInitialized()
     {
@@ -273,17 +356,217 @@
 
     private void HandleMapClick(MapCoordinate coordinate)
     {
+        if (ShellState.IsRightPanelOpen)
+        {
+            return;
+        }
+
         _selectedCoordinate = coordinate;
     }
 
-    private void HandlePointClick(Guid pointId)
+    private async Task HandlePointClick(Guid pointId)
     {
+        if (!await ConfirmDiscardChangesIfNeeded())
+        {
+            return;
+        }
+
+        var paths = GetCurrentLibraryPaths();
+        if (paths is null)
+        {
+            return;
+        }
+
+        var point = PointService.LoadPoint(paths, pointId);
+        if (point is null)
+        {
+            LoadMapPoints();
+            return;
+        }
+
         _selectedCoordinate = null;
+        _pointForm = ClonePoint(point);
+        _savedPointSnapshot = ClonePoint(point);
+        _isNewPoint = false;
+        ClearPointErrors();
         ShellState.OpenRightPanelPreview();
     }
 
     private void ClearSelectedCoordinate()
     {
+        if (ShellState.IsRightPanelOpen)
+        {
+            return;
+        }
+
         _selectedCoordinate = null;
     }
+
+    private void OpenNewPointPanel()
+    {
+        if (_selectedCoordinate is null)
+        {
+            return;
+        }
+
+        _pointForm = PointService.CreateDraft(
+            _selectedCoordinate.Latitude,
+            _selectedCoordinate.Longitude);
+        _savedPointSnapshot = null;
+        _isNewPoint = true;
+        ClearPointErrors();
+        ShellState.OpenRightPanelPreview();
+    }
+
+    private async Task SavePoint()
+    {
+        if (_pointForm is null)
+        {
+            return;
+        }
+
+        var paths = GetCurrentLibraryPaths();
+        if (paths is null)
+        {
+            return;
+        }
+
+        ClearPointErrors();
+        var result = _isNewPoint
+            ? PointService.CreatePoint(paths, _pointForm)
+            : PointService.UpdatePoint(paths, _pointForm);
+
+        if (!result.IsSuccess || result.Point is null)
+        {
+            ApplySaveErrors(result.Errors);
+            return;
+        }
+
+        _pointForm = ClonePoint(result.Point);
+        _savedPointSnapshot = ClonePoint(result.Point);
+        _isNewPoint = false;
+        _selectedCoordinate = null;
+        LoadMapPoints();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task DeletePoint()
+    {
+        if (_pointForm is null || _isNewPoint)
+        {
+            return;
+        }
+
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Delete this point?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var paths = GetCurrentLibraryPaths();
+        if (paths is null)
+        {
+            return;
+        }
+
+        ClearPointErrors();
+        var result = PointService.DeletePoint(paths, _pointForm.Id);
+
+        if (!result.IsSuccess)
+        {
+            _deleteErrors = result.Errors;
+            return;
+        }
+
+        _pointForm = null;
+        _savedPointSnapshot = null;
+        _isNewPoint = false;
+        ShellState.CloseRightPanel();
+        LoadMapPoints();
+    }
+
+    private async Task ClosePointPanel()
+    {
+        if (!await ConfirmDiscardChangesIfNeeded())
+        {
+            return;
+        }
+
+        _pointForm = null;
+        _savedPointSnapshot = null;
+        _isNewPoint = false;
+        _selectedCoordinate = null;
+        ClearPointErrors();
+        ShellState.CloseRightPanel();
+    }
+
+    private async Task<bool> ConfirmDiscardChangesIfNeeded()
+    {
+        if (!HasUnsavedPointChanges)
+        {
+            return true;
+        }
+
+        return await JsRuntime.InvokeAsync<bool>("confirm", "Discard changes?");
+    }
+
+    private FileLibraryPaths? GetCurrentLibraryPaths()
+    {
+        if (!IsLibraryReady || string.IsNullOrWhiteSpace(LibraryPath))
+        {
+            return null;
+        }
+
+        return new FileLibraryPaths(LibraryPath);
+    }
+
+    private void ApplySaveErrors(IReadOnlyList<PointSaveError> errors)
+    {
+        _titleError = errors.FirstOrDefault(error => error.FieldName == PointService.TitleFieldName)?.Message;
+        _tagsError = errors.FirstOrDefault(error => error.FieldName == PointService.TagsFieldName)?.Message;
+        _generalError = string.Join(
+            " ",
+            errors
+                .Where(error => error.FieldName == PointService.GeneralFieldName)
+                .Select(error => error.Message));
+    }
+
+    private void ClearPointErrors()
+    {
+        _titleError = null;
+        _tagsError = null;
+        _generalError = null;
+        _deleteErrors = Array.Empty<string>();
+    }
+
+    private static PointDocument ClonePoint(PointDocument point) =>
+        new()
+        {
+            Id = point.Id,
+            Title = point.Title,
+            Latitude = point.Latitude,
+            Longitude = point.Longitude,
+            AddressRegion = point.AddressRegion,
+            DescriptionText = point.DescriptionText,
+            CollectionIds = point.CollectionIds.ToList(),
+            PrimaryCollectionId = point.PrimaryCollectionId,
+            TagsText = point.TagsText,
+            Photos = point.Photos.ToList(),
+            Files = point.Files.ToList(),
+        };
+
+    private static bool PointDocumentsEqual(PointDocument point, PointDocument? other) =>
+        other is not null &&
+        point.Id == other.Id &&
+        point.Title == other.Title &&
+        point.Latitude.Equals(other.Latitude) &&
+        point.Longitude.Equals(other.Longitude) &&
+        point.AddressRegion == other.AddressRegion &&
+        point.DescriptionText == other.DescriptionText &&
+        point.CollectionIds.SequenceEqual(other.CollectionIds) &&
+        point.PrimaryCollectionId == other.PrimaryCollectionId &&
+        point.TagsText == other.TagsText &&
+        point.Photos.SequenceEqual(other.Photos) &&
+        point.Files.SequenceEqual(other.Files);
 }

@@ -12,18 +12,21 @@ Implemented:
 - Milestone 2: File Library.
 - Milestone 3: Domain Rules.
 - Milestone 4: Map Integration.
+- Milestone 5: Point CRUD.
 - WPF + BlazorWebView shell.
 - Left panel, Leaflet map, right panel preview, bottom status bar.
 - Testable shell state in `ChoKuda.Core`.
 - File library structure/services for app settings, library settings, point JSON, collection JSON, photos, and files.
 - Domain rules for point validation, tag normalization, primary collection behavior, default pin, and attachment file naming.
 - Leaflet + Stadia raster map with marker clustering, temporary point selection, and Stadia API key setup.
-- Unit tests for shell state, file library, domain rules, and map point projection.
+- Point creation, viewing, editing, deletion, unsaved-change confirmation, and point JSON persistence.
+- Unit tests for shell state, file library, domain rules, map point projection, and point CRUD service.
 
 Not implemented yet:
 
-- Points, collections, tags.
+- Collections and tags management UI.
 - Photos/files import.
+- Search and filters.
 
 ## Stack
 

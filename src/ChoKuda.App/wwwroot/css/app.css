@@ -149,6 +149,52 @@ textarea {
     gap: 8px;
 }
 
+.coordinate-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+}
+
+input[readonly] {
+    color: #4b4339;
+    background: #f4f1ea;
+}
+
+.field-error {
+    margin: 6px 0 0;
+    color: #a33124;
+    font-size: 13px;
+}
+
+.error-box {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 14px;
+    padding: 10px;
+    color: #7b241c;
+    background: #fff0ed;
+    border: 1px solid #e0aaa2;
+    border-radius: 6px;
+}
+
+.error-box p {
+    margin: 0;
+}
+
+.panel-actions {
+    position: sticky;
+    bottom: -16px;
+    display: flex;
+    gap: 10px;
+    padding: 12px 0 0;
+    background: #fffaf2;
+}
+
+.danger-button {
+    color: #7b241c;
+    border-color: #d58c82;
+}
+
 .collections-section {
     min-height: 180px;
 }
