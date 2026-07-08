@@ -1,0 +1,88 @@
+@if (ShellState.IsLeftPanelCollapsed)
+{
+    <aside class="left-rail">
+        <button class="icon-button" title="Open navigation" @onclick="ShellState.ToggleLeftPanel">Menu</button>
+    </aside>
+}
+else
+{
+    <aside class="left-panel">
+        <header class="panel-header">
+            <div>
+                <h1>ChoKuda</h1>
+                <p>Travel places bank</p>
+            </div>
+            <button class="icon-button" title="Collapse navigation" @onclick="ShellState.ToggleLeftPanel">Hide</button>
+        </header>
+
+        <SearchPanel Search="Search"
+                     Results="SearchResults"
+                     OnSearch="OnSearch"
+                     OnReset="OnResetSearch"
+                     OnResultSelected="OnSearchResultSelected" />
+
+        <CollectionsPanel Editor="CollectionEditor"
+                          Filters="Filters"
+                          Collections="Collections"
+                          OnNewCollection="OnNewCollection"
+                          OnEditCollection="OnEditCollection"
+                          OnSaveCollection="OnSaveCollection"
+                          OnCancelCollectionEdit="OnCancelCollectionEdit"
+                          OnDeleteCollection="OnDeleteCollection"
+                          OnFilterChanged="OnFilterChanged" />
+
+        <TagsPanel Filters="Filters"
+                   Tags="Tags"
+                   OnChanged="OnFilterChanged" />
+    </aside>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public AppShellState ShellState { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public SearchViewModel Search { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public FilterViewModel Filters { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public CollectionEditorViewModel CollectionEditor { get; set; } = null!;
+
+    [Parameter]
+    public IEnumerable<PointDocument> SearchResults { get; set; } = Array.Empty<PointDocument>();
+
+    [Parameter]
+    public IReadOnlyList<CollectionDocument> Collections { get; set; } = Array.Empty<CollectionDocument>();
+
+    [Parameter]
+    public IReadOnlyList<string> Tags { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public EventCallback OnSearch { get; set; }
+
+    [Parameter]
+    public EventCallback OnResetSearch { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnSearchResultSelected { get; set; }
+
+    [Parameter]
+    public EventCallback OnNewCollection { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnEditCollection { get; set; }
+
+    [Parameter]
+    public EventCallback OnSaveCollection { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelCollectionEdit { get; set; }
+
+    [Parameter]
+    public EventCallback OnDeleteCollection { get; set; }
+
+    [Parameter]
+    public EventCallback OnFilterChanged { get; set; }
+}

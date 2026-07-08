@@ -4,6 +4,7 @@
     <Project Path="src/ChoKuda.Core/ChoKuda.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/ChoKuda.App.Tests/ChoKuda.App.Tests.csproj" />
     <Project Path="tests/ChoKuda.Core.Tests/ChoKuda.Core.Tests.csproj" />
   </Folder>
 </Solution>

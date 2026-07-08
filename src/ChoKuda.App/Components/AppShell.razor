@@ -16,530 +16,103 @@
 @inject IJSRuntime JsRuntime
 
 <main class="@ShellClass">
-    @if (ShellState.IsLeftPanelCollapsed)
-    {
-        <aside class="left-rail">
-            <button class="icon-button" title="Open navigation" @onclick="ShellState.ToggleLeftPanel">Menu</button>
-        </aside>
-    }
-    else
-    {
-        <aside class="left-panel">
-            <header class="panel-header">
-                <div>
-                    <h1>ChoKuda</h1>
-                    <p>Travel places bank</p>
-                </div>
-                <button class="icon-button" title="Collapse navigation" @onclick="ShellState.ToggleLeftPanel">Hide</button>
-            </header>
+    <LeftPanel ShellState="ShellState"
+               Search="_search"
+               Filters="_filters"
+               CollectionEditor="_collectionEditor"
+               SearchResults="SearchResults"
+               Collections="_collections"
+               Tags="_tagIndex"
+               OnSearch="RunSearch"
+               OnResetSearch="ResetSearch"
+               OnSearchResultSelected="OpenSearchResult"
+               OnNewCollection="NewCollection"
+               OnEditCollection="EditCollection"
+               OnSaveCollection="SaveCollection"
+               OnCancelCollectionEdit="CancelCollectionEdit"
+               OnDeleteCollection="DeleteCollection"
+               OnFilterChanged="ApplyFiltersAndMapProjection" />
 
-            <section class="panel-section">
-                <h2>Search</h2>
-                <div class="search-row">
-                    <input placeholder="Search places" @bind="_search.Input" @bind:event="oninput" />
-                    <button disabled="@(!_search.CanRunSearch)" @onclick="RunSearch">Search</button>
-                    <button disabled="@(!_search.IsActive)" @onclick="ResetSearch">Reset search</button>
-                </div>
-            </section>
+    <MapWorkspace @ref="_mapWorkspace"
+                  IsLibraryReady="@IsLibraryReady"
+                  HasStadiaApiKey="@HasStadiaApiKey"
+                  StadiaApiKey="@StadiaApiKey"
+                  StadiaApiKeyInput="@_stadiaApiKeyInput"
+                  Points="@_mapPoints"
+                  TemporaryMarker="@_pointEditor.SelectedCoordinate"
+                  LibrarySetupTitle="@LibrarySetupTitle"
+                  LibrarySetupMessage="@LibrarySetupMessage"
+                  DefaultLibraryPath="@DefaultLibraryPath"
+                  OnStadiaApiKeyInputChanged="UpdateStadiaApiKeyInput"
+                  OnSaveStadiaApiKey="SaveStadiaApiKey"
+                  OnCreateDefaultLibrary="CreateDefaultLibrary"
+                  OnChooseLibrary="ChooseLibrary"
+                  OnExit="ApplicationShutdown.Shutdown"
+                  OnMapClick="HandleMapClick"
+                  OnPointClick="HandlePointClick"
+                  OnEscape="ClearSelectedCoordinate" />
 
-            <section class="panel-section">
-                <h2>Search Results</h2>
-                @if (!_search.IsActive)
-                {
-                    <p class="muted">No active search.</p>
-                }
-                else if (_filteredPoints.Count == 0)
-                {
-                    <p class="muted">No points found.</p>
-                }
-                else
-                {
-                    <div class="search-results">
-                        @foreach (var point in SearchResults)
-                        {
-                            <button class="search-result-row" @onclick="() => OpenSearchResult(point.Id)">
-                                <span>@point.Title</span>
-                                @if (!string.IsNullOrWhiteSpace(point.AddressRegion))
-                                {
-                                    <small>@point.AddressRegion</small>
-                                }
-                            </button>
-                        }
-                    </div>
-                }
-            </section>
+    <PointPanel IsOpen="@ShellState.IsRightPanelOpen"
+                Editor="_pointEditor"
+                Collections="_collections"
+                Photos="PhotoItems"
+                Files="FileItems"
+                AttachmentErrors="_attachments.Errors"
+                OnClose="ClosePointPanel"
+                OnSave="SavePoint"
+                OnDelete="DeletePoint"
+                OnAddFiles="AddPendingAttachments"
+                OnRemoveAttachment="RemoveAttachment"
+                OnOpenAttachment="OpenAttachment"
+                OnOpenPhoto="OpenPhotoViewer" />
 
-            <section class="panel-section collections-section">
-                <div class="section-title-row">
-                    <h2>Collections</h2>
-                    <button class="compact-button" @onclick="NewCollection">+ Collection</button>
-                </div>
-
-                @if (_collectionForm is not null)
-                {
-                    <div class="inline-form">
-                        <label>
-                            Name
-                            <input @bind="_collectionForm.Name" />
-                        </label>
-                        @if (!string.IsNullOrWhiteSpace(_collectionNameError))
-                        {
-                            <p class="field-error">@_collectionNameError</p>
-                        }
-
-                        <label>
-                            Icon
-                            <input @bind="_iconSearch" @bind:event="oninput" placeholder="Search icon name" />
-                        </label>
-                        <div class="icon-grid">
-                            @foreach (var iconId in FilteredIconIds)
-                            {
-                                <button class="@IconChoiceClass(iconId)"
-                                        title="@iconId"
-                                        @onclick="() => SelectCollectionIcon(iconId)">
-                                    <i class="bi bi-@iconId"></i>
-                                </button>
-                            }
-                        </div>
-
-                        <label>
-                            Color
-                            <span class="color-row">
-                                <input type="color" @bind="_collectionForm.Color" />
-                                <code>@_collectionForm.Color</code>
-                            </span>
-                        </label>
-                        @if (!string.IsNullOrWhiteSpace(_collectionColorError))
-                        {
-                            <p class="field-error">@_collectionColorError</p>
-                        }
-
-                        <label>
-                            Description
-                            <textarea class="compact-textarea" @bind="_collectionForm.DescriptionText"></textarea>
-                        </label>
-
-                        @if (!string.IsNullOrWhiteSpace(_collectionGeneralError))
-                        {
-                            <p class="field-error">@_collectionGeneralError</p>
-                        }
-
-                        @if (_collectionDeleteErrors.Count > 0)
-                        {
-                            <div class="error-box">
-                                @foreach (var error in _collectionDeleteErrors)
-                                {
-                                    <p>@error</p>
-                                }
-                            </div>
-                        }
-
-                        <div class="panel-actions inline-actions">
-                            <button @onclick="SaveCollection">Save</button>
-                            <button @onclick="CancelCollectionEdit">Cancel</button>
-                            @if (!_isNewCollection)
-                            {
-                                <button class="danger-button" @onclick="DeleteCollection">Delete</button>
-                            }
-                        </div>
-                    </div>
-                }
-
-                <div class="collection-list">
-                    @foreach (var collection in _collections.OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        <button class="collection-row" @onclick="() => EditCollection(collection.Id)">
-                            <span class="collection-style" style="background:@collection.Color">
-                                <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
-                            </span>
-                            <span>@collection.Name</span>
-                        </button>
-                    }
-                </div>
-
-                <div class="filter-block">
-                    <div class="filter-header">
-                        <strong>Filter</strong>
-                        <button class="compact-button" @onclick="ResetCollectionFilter">Reset collections</button>
-                    </div>
-                    <div class="segmented-control">
-                        <button class="@ModeButtonClass(_filters.CollectionMode, FilterMode.Any)"
-                                @onclick="() => SetCollectionFilterMode(FilterMode.Any)">
-                            OR
-                        </button>
-                        <button class="@ModeButtonClass(_filters.CollectionMode, FilterMode.All)"
-                                @onclick="() => SetCollectionFilterMode(FilterMode.All)">
-                            AND
-                        </button>
-                    </div>
-
-                    @foreach (var collection in _collections.OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        <label class="check-row">
-                            <input type="checkbox"
-                                   checked="@_filters.SelectedCollectionIds.Contains(collection.Id)"
-                                   @onchange="eventArgs => ToggleCollectionFilter(collection.Id, eventArgs.Value is true)" />
-                            <span>@collection.Name</span>
-                        </label>
-                    }
-
-                    @if (_filters.SelectedCollectionIds.Count > 0)
-                    {
-                        <div class="drag-list">
-                            @foreach (var collectionId in _filters.SelectedCollectionIds)
-                            {
-                                var collection = FindCollection(collectionId);
-                                if (collection is not null)
-                                {
-                                    <div class="drag-row"
-                                         draggable="true"
-                                         @ondragstart="() => StartCollectionFilterDrag(collectionId)"
-                                         @ondragover:preventDefault="true"
-                                         @ondrop="() => DropCollectionFilter(collectionId)">
-                                        <i class="bi bi-grip-vertical"></i>
-                                        <span class="collection-style small" style="background:@collection.Color">
-                                            <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
-                                        </span>
-                                        <span>@collection.Name</span>
-                                    </div>
-                                }
-                            }
-                        </div>
-                    }
-                </div>
-            </section>
-
-            <section class="panel-section tags-section">
-                <div class="filter-header">
-                    <h2>Tags</h2>
-                    <button class="compact-button" @onclick="ResetTagFilter">Reset tags</button>
-                </div>
-                <div class="segmented-control">
-                    <button class="@ModeButtonClass(_filters.TagMode, FilterMode.Any)"
-                            @onclick="() => SetTagFilterMode(FilterMode.Any)">
-                        OR
-                    </button>
-                    <button class="@ModeButtonClass(_filters.TagMode, FilterMode.All)"
-                            @onclick="() => SetTagFilterMode(FilterMode.All)">
-                        AND
-                    </button>
-                </div>
-
-                @if (_tagIndex.Count == 0)
-                {
-                    <p class="muted">No tags yet.</p>
-                }
-                else
-                {
-                    @foreach (var tag in _tagIndex)
-                    {
-                        <label class="check-row">
-                            <input type="checkbox"
-                                   checked="@_filters.SelectedTags.Contains(tag)"
-                                   @onchange="eventArgs => ToggleTagFilter(tag, eventArgs.Value is true)" />
-                            <span>@tag</span>
-                        </label>
-                    }
-                }
-            </section>
-        </aside>
-    }
-
-    <section class="map-stage">
-        @if (IsLibraryReady)
-        {
-            @if (HasStadiaApiKey)
-            {
-                <MapView @ref="_mapView"
-                         ApiKey="@StadiaApiKey"
-                         Points="@_mapPoints"
-                         TemporaryMarker="@_selectedCoordinate"
-                         OnMapClick="HandleMapClick"
-                         OnPointClick="HandlePointClick"
-                         OnEscape="ClearSelectedCoordinate" />
-            }
-            else
-            {
-                <div class="library-setup">
-                    <h2>Stadia Maps API key required</h2>
-                    <p>Add your Stadia Maps API key to load the online map.</p>
-                    <input @bind="_stadiaApiKeyInput" placeholder="Stadia API key" />
-                    <div class="setup-actions">
-                        <button @onclick="SaveStadiaApiKey">Save API key</button>
-                    </div>
-                </div>
-            }
-        }
-        else
-        {
-            <div class="library-setup">
-                <h2>@LibrarySetupTitle</h2>
-                <p>@LibrarySetupMessage</p>
-                <code>@DefaultLibraryPath</code>
-                <div class="setup-actions">
-                    <button @onclick="CreateDefaultLibrary">Create default library</button>
-                    <button @onclick="ChooseLibrary">Choose folder</button>
-                    <button @onclick="ApplicationShutdown.Shutdown">Exit</button>
-                </div>
-            </div>
-        }
-    </section>
-
-    @if (ShellState.IsRightPanelOpen && _pointForm is not null)
-    {
-        <aside class="right-panel">
-            <header class="panel-header">
-                <div>
-                    <h2>@PointPanelTitle</h2>
-                    <p>@PointPanelSubtitle</p>
-                </div>
-                <button class="icon-button" title="Close point panel" @onclick="ClosePointPanel">Close</button>
-            </header>
-
-            <section class="panel-section">
-                <label>
-                    Title
-                    <input @bind="_pointForm.Title" />
-                </label>
-                @if (!string.IsNullOrWhiteSpace(_titleError))
-                {
-                    <p class="field-error">@_titleError</p>
-                }
-            </section>
-
-            <section class="panel-section">
-                <h3>Coordinates</h3>
-                <div class="coordinate-grid">
-                    <label>
-                        Latitude
-                        <input value="@_pointForm.Latitude.ToString("F6")" readonly />
-                    </label>
-                    <label>
-                        Longitude
-                        <input value="@_pointForm.Longitude.ToString("F6")" readonly />
-                    </label>
-                </div>
-            </section>
-
-            <section class="panel-section">
-                <label>
-                    Address / Region
-                    <input @bind="_pointForm.AddressRegion" />
-                </label>
-            </section>
-
-            <section class="panel-section">
-                <h3>Description</h3>
-                <textarea @bind="_pointForm.DescriptionText"></textarea>
-            </section>
-
-            <section class="panel-section">
-                <label>
-                    Tags
-                    <input @bind="_pointForm.TagsText" placeholder="#hardmode #safe #rentcar" />
-                </label>
-                @if (!string.IsNullOrWhiteSpace(_tagsError))
-                {
-                    <p class="field-error">@_tagsError</p>
-                }
-            </section>
-
-            <section class="panel-section">
-                <h3>Collections</h3>
-                @if (_collections.Count == 0)
-                {
-                    <div class="empty-box">Create collections in the left panel.</div>
-                }
-                else
-                {
-                    @foreach (var collection in _collections.OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase))
-                    {
-                        <label class="check-row">
-                            <input type="checkbox"
-                                   checked="@IsPointInCollection(collection.Id)"
-                                   @onchange="eventArgs => TogglePointCollection(collection.Id, eventArgs.Value is true)" />
-                            <span class="collection-style small" style="background:@collection.Color">
-                                <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
-                            </span>
-                            <span>@collection.Name</span>
-                        </label>
-                    }
-
-                    <label>
-                        Primary collection
-                        <select value="@(_pointForm.PrimaryCollectionId?.ToString() ?? string.Empty)"
-                                disabled="@(_pointForm.CollectionIds.Count == 0)"
-                                @onchange="HandlePrimaryCollectionChanged">
-                            <option value="">None</option>
-                            @foreach (var collection in SelectedPointCollections)
-                            {
-                                <option value="@collection.Id">@collection.Name</option>
-                            }
-                        </select>
-                    </label>
-                }
-            </section>
-
-            <section class="panel-section">
-                <button @onclick="AddPendingAttachments">Add files</button>
-            </section>
-
-            <section class="panel-section">
-                <h3>Photos</h3>
-                @if (!PhotoItems.Any())
-                {
-                    <div class="empty-box">No photos.</div>
-                }
-                else
-                {
-                    <div class="photo-grid">
-                        @foreach (var photo in PhotoItems)
-                        {
-                            <div class="photo-tile">
-                                <button class="photo-preview" @onclick="() => OpenPhotoViewer(photo.Path)">
-                                    <img src="@ToImageSource(photo.Path)" alt="@photo.DisplayName" />
-                                </button>
-                                <span title="@photo.DisplayName">@photo.DisplayName</span>
-                                <button class="compact-button"
-                                        @onclick="() => RemoveAttachment(photo)">
-                                    Delete
-                                </button>
-                            </div>
-                        }
-                    </div>
-                }
-            </section>
-
-            <section class="panel-section">
-                <h3>Files</h3>
-                @if (!FileItems.Any())
-                {
-                    <div class="empty-box">No files.</div>
-                }
-                else
-                {
-                    <div class="file-list">
-                        @foreach (var file in FileItems)
-                        {
-                            <div class="file-row">
-                                <button @onclick="() => OpenAttachment(file)">@file.DisplayName</button>
-                                <button class="compact-button"
-                                        @onclick="() => RemoveAttachment(file)">
-                                    Delete
-                                </button>
-                            </div>
-                        }
-                    </div>
-                }
-            </section>
-
-            @if (!string.IsNullOrWhiteSpace(_generalError))
-            {
-                <p class="field-error">@_generalError</p>
-            }
-
-            @if (_deleteErrors.Count > 0)
-            {
-                <div class="error-box">
-                    @foreach (var error in _deleteErrors)
-                    {
-                        <p>@error</p>
-                    }
-                </div>
-            }
-
-            @if (_attachmentErrors.Count > 0)
-            {
-                <div class="error-box">
-                    @foreach (var error in _attachmentErrors)
-                    {
-                        <p>@error</p>
-                    }
-                </div>
-            }
-
-            <div class="panel-actions">
-                <button @onclick="SavePoint">Save</button>
-                @if (!_isNewPoint)
-                {
-                    <button class="danger-button" @onclick="DeletePoint">Delete</button>
-                }
-            </div>
-        </aside>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(_photoViewerPath))
+    @if (!string.IsNullOrWhiteSpace(_attachments.PhotoViewerPath))
     {
         <div class="photo-viewer">
             <button class="photo-viewer-backdrop" @onclick="ClosePhotoViewer"></button>
             <div class="photo-viewer-content">
-                <img src="@ToImageSource(_photoViewerPath)" alt="Photo preview" />
+                <img src="@AttachmentDraftState.ToImageSource(_attachments.PhotoViewerPath)" alt="Photo preview" />
                 <button @onclick="ClosePhotoViewer">Close</button>
             </div>
         </div>
     }
 
-    <footer class="status-bar">
-        <span>Visible: @_filteredPoints.Count / Total: @_allPoints.Count</span>
-        <span>@StatusMessage</span>
-        <div class="status-action">
-            <span class="muted">@SelectedCoordinateStatus</span>
-            <button disabled="@IsAddPointDisabled" @onclick="OpenNewPointPanel">Add point</button>
-        </div>
-    </footer>
+    <StatusBar VisiblePointCount="@_filteredPoints.Count"
+               TotalPointCount="@_allPoints.Count"
+               Message="@StatusMessage"
+               SelectedCoordinateStatus="@_pointEditor.SelectedCoordinateStatus"
+               AddPointDisabled="@IsAddPointDisabled"
+               OnAddPoint="OpenNewPointPanel" />
 </main>
 
 @code {
-    private static readonly IReadOnlyList<string> BootstrapIconIds =
-    [
-        "geo-alt-fill", "pin-map-fill", "map-fill", "compass-fill", "camera-fill", "image-fill",
-        "sun-fill", "moon-stars-fill", "cloud-sun-fill", "water", "tree-fill", "flower1",
-        "fire", "umbrella-fill", "snow", "star-fill", "heart-fill", "flag-fill", "bookmark-fill",
-        "signpost-fill", "binoculars-fill", "backpack-fill", "car-front-fill", "taxi-front-fill",
-        "bus-front-fill", "train-front-fill", "airplane-fill", "bicycle", "scooter", "fuel-pump-fill",
-        "house-door-fill", "building-fill", "buildings-fill", "hospital-fill", "shop", "basket-fill",
-        "cart-fill", "bag-fill", "cup-hot-fill", "cup-straw", "egg-fried", "cake2-fill",
-        "fork-knife", "geo-fill", "crosshair", "bullseye", "diamond-fill", "circle-fill",
-        "square-fill", "triangle-fill", "hexagon-fill", "lightning-fill", "gem", "key-fill",
-        "shield-fill", "calendar-event-fill", "clock-fill", "wifi", "telephone-fill", "link-45deg",
-        "file-earmark-pdf-fill", "journal-text", "book-fill", "palette-fill", "tools", "gear-fill",
-        "person-walking", "cash-coin", "gift-fill", "trophy-fill", "rocket-takeoff-fill", "magic",
-        "brightness-high-fill", "thermometer-sun", "droplet-fill", "wind", "layers-fill",
-        "collection-fill", "tags-fill", "filter-circle-fill", "funnel-fill", "search", "grip-vertical",
-        "trash-fill", "pencil-fill", "save-fill",
-    ];
-
     private AppSettings _appSettings = new();
     private IReadOnlyList<PointDocument> _allPoints = Array.Empty<PointDocument>();
     private IReadOnlyList<PointDocument> _filteredPoints = Array.Empty<PointDocument>();
     private IReadOnlyList<CollectionDocument> _collections = Array.Empty<CollectionDocument>();
     private IReadOnlyList<MapPoint> _mapPoints = Array.Empty<MapPoint>();
     private IReadOnlyList<string> _tagIndex = Array.Empty<string>();
-    private MapView? _mapView;
-    private MapCoordinate? _selectedCoordinate;
-    private PointDocument? _pointForm;
-    private PointDocument? _savedPointSnapshot;
-    private CollectionDocument? _collectionForm;
-    private CollectionDocument? _savedCollectionSnapshot;
+    private MapWorkspace? _mapWorkspace;
     private readonly SearchViewModel _search = new();
     private readonly FilterViewModel _filters = new();
+    private readonly PointEditorViewModel _pointEditor = new();
+    private readonly AttachmentDraftState _attachments = new();
+    private readonly CollectionEditorViewModel _collectionEditor = new();
     private string _stadiaApiKeyInput = string.Empty;
-    private string _iconSearch = string.Empty;
-    private string? _titleError;
-    private string? _tagsError;
-    private string? _generalError;
-    private string? _photoViewerPath;
-    private string? _collectionNameError;
-    private string? _collectionColorError;
-    private string? _collectionGeneralError;
-    private IReadOnlyList<string> _deleteErrors = Array.Empty<string>();
-    private IReadOnlyList<string> _attachmentErrors = Array.Empty<string>();
-    private IReadOnlyList<string> _collectionDeleteErrors = Array.Empty<string>();
-    private List<PendingAttachment> _pendingAttachments = [];
     private int _pointLoadErrorCount;
     private int _collectionLoadErrorCount;
-    private bool _isNewPoint;
-    private bool _isNewCollection;
+
+    private CollectionDocument? _collectionForm =>
+        _collectionEditor.Form;
+
+    private bool _isNewCollection =>
+        _collectionEditor.IsNew;
+
+    private PointDocument? _pointForm =>
+        _pointEditor.Form;
+
+    private bool _isNewPoint =>
+        _pointEditor.IsNew;
 
     private bool IsLibraryReady { get; set; }
 
@@ -559,18 +132,7 @@
         _appSettings.StadiaApiKey ?? string.Empty;
 
     private bool IsAddPointDisabled =>
-        !IsLibraryReady || _selectedCoordinate is null || ShellState.IsRightPanelOpen;
-
-    private string SelectedCoordinateStatus =>
-        _selectedCoordinate is null
-            ? "No map point selected"
-            : $"{_selectedCoordinate.Latitude:F5}, {_selectedCoordinate.Longitude:F5}";
-
-    private string PointPanelTitle =>
-        _isNewPoint ? "New point" : "Edit point";
-
-    private string PointPanelSubtitle =>
-        _isNewPoint ? "Unsaved draft" : "Saved point";
+        !_pointEditor.CanOpenNewPoint(IsLibraryReady, ShellState.IsRightPanelOpen);
 
     private string StatusMessage =>
         $"Search: {(_search.IsActive ? "active" : "none")} | " +
@@ -583,34 +145,25 @@
             ? "app-shell left-collapsed"
             : "app-shell";
 
-    private bool HasUnsavedPointChanges =>
-        _pointForm is not null &&
-        (_isNewPoint || !PointDocumentsEqual(_pointForm, _savedPointSnapshot));
-
     private bool HasUnsavedCollectionChanges =>
-        _collectionForm is not null &&
-        (_isNewCollection || !CollectionDocumentsEqual(_collectionForm, _savedCollectionSnapshot));
+        _collectionEditor.HasUnsavedChanges;
 
     private IEnumerable<PointDocument> SearchResults =>
         _filteredPoints
             .OrderBy(point => point.Title, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(point => point.Id);
 
-    private IEnumerable<string> FilteredIconIds =>
-        BootstrapIconIds
-            .Where(iconId => string.IsNullOrWhiteSpace(_iconSearch) || iconId.Contains(_iconSearch.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Take(48);
-
-    private IEnumerable<CollectionDocument> SelectedPointCollections =>
-        _collections
-            .Where(collection => _pointForm?.CollectionIds.Contains(collection.Id) == true)
-            .OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase);
-
     private IEnumerable<AttachmentDisplayItem> PhotoItems =>
-        GetAttachmentDisplayItems(AttachmentKind.Photo);
+        _attachments.GetDisplayItems(
+            AttachmentKind.Photo,
+            _pointForm,
+            GetCurrentLibraryPaths()?.PhotosPath);
 
     private IEnumerable<AttachmentDisplayItem> FileItems =>
-        GetAttachmentDisplayItems(AttachmentKind.File);
+        _attachments.GetDisplayItems(
+            AttachmentKind.File,
+            _pointForm,
+            GetCurrentLibraryPaths()?.FilesPath);
 
     protected override void OnInitialized()
     {
@@ -733,14 +286,14 @@
         AppSettingsService.Save(_appSettings);
     }
 
+    private void UpdateStadiaApiKeyInput(string value)
+    {
+        _stadiaApiKeyInput = value;
+    }
+
     private void HandleMapClick(MapCoordinate coordinate)
     {
-        if (ShellState.IsRightPanelOpen)
-        {
-            return;
-        }
-
-        _selectedCoordinate = coordinate;
+        _pointEditor.SelectCoordinate(coordinate, ShellState.IsRightPanelOpen);
     }
 
     private async Task HandlePointClick(Guid pointId)
@@ -758,9 +311,9 @@
             return;
         }
 
-        if (await OpenSavedPoint(pointId) && _mapView is not null)
+        if (await OpenSavedPoint(pointId) && _mapWorkspace is not null)
         {
-            await _mapView.CenterOnAsync(point.Latitude, point.Longitude);
+            await _mapWorkspace.CenterOnAsync(point.Latitude, point.Longitude);
         }
     }
 
@@ -784,11 +337,8 @@
             return false;
         }
 
-        _selectedCoordinate = null;
-        _pointForm = ClonePoint(point);
-        _savedPointSnapshot = ClonePoint(point);
-        _pendingAttachments = [];
-        _isNewPoint = false;
+        _pointEditor.OpenExisting(point);
+        _attachments.ClearAll();
         ClearPointErrors();
         ShellState.OpenRightPanelPreview();
         return true;
@@ -796,25 +346,17 @@
 
     private void ClearSelectedCoordinate()
     {
-        if (ShellState.IsRightPanelOpen)
-        {
-            return;
-        }
-
-        _selectedCoordinate = null;
+        _pointEditor.ClearSelectedCoordinate(ShellState.IsRightPanelOpen);
     }
 
     private void OpenNewPointPanel()
     {
-        if (_selectedCoordinate is null)
+        if (!_pointEditor.OpenNewFromSelectedCoordinate(PointService.CreateDraft))
         {
             return;
         }
 
-        _pointForm = PointService.CreateDraft(_selectedCoordinate.Latitude, _selectedCoordinate.Longitude);
-        _savedPointSnapshot = null;
-        _pendingAttachments = [];
-        _isNewPoint = true;
+        _attachments.ClearAll();
         ClearPointErrors();
         ShellState.OpenRightPanelPreview();
     }
@@ -832,55 +374,26 @@
             return;
         }
 
-        ClearPointErrors();
-        var result = _isNewPoint
-            ? PointService.CreatePoint(paths, _pointForm)
-            : PointService.UpdatePoint(paths, _pointForm);
+        ClearAttachmentErrors();
+        var saveResult = _pointEditor.SaveWithAttachments(
+            point => _isNewPoint
+                ? PointService.CreatePoint(paths, point)
+                : PointService.UpdatePoint(paths, point),
+            _attachments,
+            (point, pendingAttachments) => AttachmentImportService.ImportPendingAttachments(paths, point, pendingAttachments),
+            point => PointService.UpdatePoint(paths, point));
 
-        if (!result.IsSuccess || result.Point is null)
+        if (!saveResult.IsSuccess)
         {
-            ApplySaveErrors(result.Errors);
+            if (saveResult.ShouldReloadLibrary)
+            {
+                LoadLibraryData();
+                await InvokeAsync(StateHasChanged);
+            }
+
             return;
         }
 
-        var savedPoint = result.Point;
-
-        if (_pendingAttachments.Count > 0)
-        {
-            var importResult = AttachmentImportService.ImportPendingAttachments(
-                paths,
-                savedPoint,
-                _pendingAttachments);
-
-            _attachmentErrors = importResult.Errors
-                .Select(error => $"{Path.GetFileName(error.SourcePath)}: {error.Message}")
-                .ToArray();
-            _pendingAttachments = [];
-
-            var attachmentSaveResult = PointService.UpdatePoint(paths, importResult.Point);
-
-            if (!attachmentSaveResult.IsSuccess || attachmentSaveResult.Point is null)
-            {
-                ApplySaveErrors(attachmentSaveResult.Errors);
-                _attachmentErrors = _attachmentErrors
-                    .Concat(["Imported files were copied, but point JSON could not be updated. Try saving again."])
-                    .ToArray();
-                _pointForm = ClonePoint(importResult.Point);
-                _savedPointSnapshot = ClonePoint(savedPoint);
-                LoadLibraryData();
-                await InvokeAsync(StateHasChanged);
-                return;
-            }
-            else
-            {
-                savedPoint = attachmentSaveResult.Point;
-            }
-        }
-
-        _pointForm = ClonePoint(savedPoint);
-        _savedPointSnapshot = ClonePoint(savedPoint);
-        _isNewPoint = false;
-        _selectedCoordinate = null;
         LoadLibraryData();
         await InvokeAsync(StateHasChanged);
     }
@@ -905,19 +418,13 @@
             return;
         }
 
-        ClearPointErrors();
-        var result = PointService.DeletePoint(paths, _pointForm.Id);
-
-        if (!result.IsSuccess)
+        if (!_pointEditor.Delete(
+            pointId => PointService.DeletePoint(paths, pointId),
+            _attachments))
         {
-            _deleteErrors = result.Errors;
             return;
         }
 
-        _pointForm = null;
-        _savedPointSnapshot = null;
-        _pendingAttachments = [];
-        _isNewPoint = false;
         ShellState.CloseRightPanel();
         LoadLibraryData();
     }
@@ -929,23 +436,21 @@
             return;
         }
 
-        _pointForm = null;
-        _savedPointSnapshot = null;
-        _pendingAttachments = [];
-        _isNewPoint = false;
-        _selectedCoordinate = null;
+        _pointEditor.Clear();
+        _attachments.ClearAll();
         ClearPointErrors();
         ShellState.CloseRightPanel();
     }
 
     private async Task<bool> ConfirmDiscardChangesIfNeeded()
     {
-        if (!HasUnsavedPointChanges)
+        if (!_pointEditor.RequiresDiscardConfirmation)
         {
             return true;
         }
 
-        return await JsRuntime.InvokeAsync<bool>("confirm", "Discard changes?");
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Discard changes?");
+        return _pointEditor.CanDiscardChanges(confirmed);
     }
 
     private async Task NewCollection()
@@ -955,11 +460,7 @@
             return;
         }
 
-        _collectionForm = CollectionService.CreateDraft();
-        _savedCollectionSnapshot = null;
-        _isNewCollection = true;
-        _iconSearch = string.Empty;
-        ClearCollectionErrors();
+        _collectionEditor.OpenNew(CollectionService.CreateDraft());
     }
 
     private async Task EditCollection(Guid collectionId)
@@ -976,40 +477,27 @@
             return;
         }
 
-        _collectionForm = CloneCollection(collection);
-        _savedCollectionSnapshot = CloneCollection(collection);
-        _isNewCollection = false;
-        _iconSearch = collection.IconId;
-        ClearCollectionErrors();
+        _collectionEditor.OpenExisting(collection);
     }
 
     private async Task SaveCollection()
     {
-        if (_collectionForm is null)
-        {
-            return;
-        }
-
         var paths = GetCurrentLibraryPaths();
         if (paths is null)
         {
             return;
         }
 
-        ClearCollectionErrors();
-        var result = _isNewCollection
-            ? CollectionService.CreateCollection(paths, _collectionForm, _collections)
-            : CollectionService.UpdateCollection(paths, _collectionForm, _collections);
+        var savedCollection = _collectionEditor.Save(collection =>
+            _isNewCollection
+                ? CollectionService.CreateCollection(paths, collection, _collections)
+                : CollectionService.UpdateCollection(paths, collection, _collections));
 
-        if (!result.IsSuccess || result.Collection is null)
+        if (savedCollection is null)
         {
-            ApplyCollectionSaveErrors(result.Errors);
             return;
         }
 
-        _collectionForm = CloneCollection(result.Collection);
-        _savedCollectionSnapshot = CloneCollection(result.Collection);
-        _isNewCollection = false;
         LoadLibraryData();
         await InvokeAsync(StateHasChanged);
     }
@@ -1034,18 +522,11 @@
             return;
         }
 
-        ClearCollectionErrors();
-        var result = CollectionService.DeleteCollection(paths, _collectionForm.Id);
-
-        if (!result.IsSuccess)
+        if (!_collectionEditor.Delete(collectionId => CollectionService.DeleteCollection(paths, collectionId)))
         {
-            _collectionDeleteErrors = result.Errors;
             return;
         }
 
-        _collectionForm = null;
-        _savedCollectionSnapshot = null;
-        _isNewCollection = false;
         LoadLibraryData();
     }
 
@@ -1056,111 +537,18 @@
             return;
         }
 
-        _collectionForm = null;
-        _savedCollectionSnapshot = null;
-        _isNewCollection = false;
-        ClearCollectionErrors();
+        _collectionEditor.Clear();
     }
 
     private async Task<bool> ConfirmDiscardCollectionChangesIfNeeded()
     {
-        if (!HasUnsavedCollectionChanges)
+        if (!_collectionEditor.RequiresDiscardConfirmation)
         {
             return true;
         }
 
-        return await JsRuntime.InvokeAsync<bool>("confirm", "Discard changes?");
-    }
-
-    private void SelectCollectionIcon(string iconId)
-    {
-        if (_collectionForm is not null)
-        {
-            _collectionForm.IconId = iconId;
-            _iconSearch = iconId;
-        }
-    }
-
-    private void TogglePointCollection(Guid collectionId, bool isSelected)
-    {
-        if (_pointForm is null)
-        {
-            return;
-        }
-
-        if (isSelected)
-        {
-            if (!_pointForm.CollectionIds.Contains(collectionId))
-            {
-                _pointForm.CollectionIds.Add(collectionId);
-            }
-
-            _pointForm.PrimaryCollectionId = PointCollectionRules.AddCollection(
-                _pointForm.CollectionIds,
-                _pointForm.PrimaryCollectionId,
-                collectionId);
-            return;
-        }
-
-        _pointForm.CollectionIds.Remove(collectionId);
-        _pointForm.PrimaryCollectionId = PointCollectionRules.RemoveCollection(
-            _pointForm.CollectionIds,
-            collectionId,
-            _pointForm.PrimaryCollectionId,
-            _collections.Select(collection => new CollectionSummary(collection.Id, collection.Name)).ToArray());
-    }
-
-    private void HandlePrimaryCollectionChanged(ChangeEventArgs eventArgs)
-    {
-        if (_pointForm is null)
-        {
-            return;
-        }
-
-        var value = eventArgs.Value?.ToString();
-        _pointForm.PrimaryCollectionId =
-            Guid.TryParse(value, out var collectionId) && _pointForm.CollectionIds.Contains(collectionId)
-                ? collectionId
-                : null;
-    }
-
-    private bool IsPointInCollection(Guid collectionId) =>
-        _pointForm?.CollectionIds.Contains(collectionId) == true;
-
-    private void ToggleCollectionFilter(Guid collectionId, bool isSelected)
-    {
-        _filters.ToggleCollection(collectionId, isSelected);
-        ApplyFiltersAndMapProjection();
-    }
-
-    private void ToggleTagFilter(string tag, bool isSelected)
-    {
-        _filters.ToggleTag(tag, isSelected);
-        ApplyFiltersAndMapProjection();
-    }
-
-    private void SetCollectionFilterMode(FilterMode mode)
-    {
-        _filters.SetCollectionMode(mode);
-        ApplyFiltersAndMapProjection();
-    }
-
-    private void SetTagFilterMode(FilterMode mode)
-    {
-        _filters.SetTagMode(mode);
-        ApplyFiltersAndMapProjection();
-    }
-
-    private void ResetCollectionFilter()
-    {
-        _filters.ResetCollections();
-        ApplyFiltersAndMapProjection();
-    }
-
-    private void ResetTagFilter()
-    {
-        _filters.ResetTags();
-        ApplyFiltersAndMapProjection();
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Discard changes?");
+        return _collectionEditor.CanDiscardChanges(confirmed);
     }
 
     private void RunSearch()
@@ -1177,19 +565,6 @@
     {
         _search.Reset();
         ApplyFiltersAndMapProjection();
-    }
-
-    private void StartCollectionFilterDrag(Guid collectionId)
-    {
-        _filters.StartCollectionDrag(collectionId);
-    }
-
-    private void DropCollectionFilter(Guid targetCollectionId)
-    {
-        if (_filters.DropCollection(targetCollectionId))
-        {
-            ApplyFiltersAndMapProjection();
-        }
     }
 
     private FileLibraryPaths? GetCurrentLibraryPaths()
@@ -1210,18 +585,9 @@
         }
 
         var selectedFiles = AttachmentFilePicker.PickFiles();
-
-        foreach (var filePath in selectedFiles)
-        {
-            if (_pendingAttachments.Any(attachment => string.Equals(attachment.SourcePath, filePath, StringComparison.OrdinalIgnoreCase)))
-            {
-                continue;
-            }
-
-            _pendingAttachments.Add(new PendingAttachment(
-                filePath,
-                AttachmentFileClassifier.Classify(filePath)));
-        }
+        _attachments.AddFiles(
+            selectedFiles,
+            filePath => AttachmentFileClassifier.Classify(filePath));
     }
 
     private async Task RemoveAttachment(AttachmentDisplayItem item)
@@ -1235,7 +601,7 @@
 
         if (item.IsPending)
         {
-            _pendingAttachments.RemoveAll(attachment => attachment.SourcePath == item.Path && attachment.Kind == item.Kind);
+            _attachments.RemovePending(item);
             return;
         }
 
@@ -1252,204 +618,49 @@
             return;
         }
 
-        var result = AttachmentDeleteService.DeleteSavedAttachment(
-            paths,
-            _pointForm,
-            item.Kind,
-            item.StoredName);
-
-        if (!result.IsSuccess)
+        if (!_pointEditor.DeleteSavedAttachment(
+            item,
+            _attachments,
+            (point, kind, storedName) => AttachmentDeleteService.DeleteSavedAttachment(paths, point, kind, storedName)))
         {
-            _attachmentErrors = result.Errors;
             return;
         }
 
-        _pointForm = ClonePoint(result.Point);
-        _savedPointSnapshot = ClonePoint(result.Point);
         LoadLibraryData();
     }
 
     private void OpenAttachment(AttachmentDisplayItem item)
     {
-        ClearAttachmentErrors();
-        var error = AttachmentOpener.Open(item.Path);
-
-        if (!string.IsNullOrWhiteSpace(error))
-        {
-            _attachmentErrors = [error];
-        }
+        _attachments.OpenFile(item, AttachmentOpener.Open);
     }
 
     private void OpenPhotoViewer(string photoPath)
     {
-        _photoViewerPath = photoPath;
+        _attachments.OpenPhotoViewer(photoPath);
     }
 
     private void ClosePhotoViewer()
     {
-        _photoViewerPath = null;
-    }
-
-    private void ApplySaveErrors(IReadOnlyList<PointSaveError> errors)
-    {
-        _titleError = errors.FirstOrDefault(error => error.FieldName == PointService.TitleFieldName)?.Message;
-        _tagsError = errors.FirstOrDefault(error => error.FieldName == PointService.TagsFieldName)?.Message;
-        _generalError = string.Join(
-            " ",
-            errors
-                .Where(error => error.FieldName == PointService.GeneralFieldName)
-                .Select(error => error.Message));
-    }
-
-    private void ApplyCollectionSaveErrors(IReadOnlyList<CollectionSaveError> errors)
-    {
-        _collectionNameError = errors.FirstOrDefault(error => error.FieldName == CollectionService.NameFieldName)?.Message;
-        _collectionColorError = errors.FirstOrDefault(error => error.FieldName == CollectionService.ColorFieldName)?.Message;
-        _collectionGeneralError = string.Join(
-            " ",
-            errors
-                .Where(error => error.FieldName == CollectionService.GeneralFieldName)
-                .Select(error => error.Message));
+        _attachments.ClosePhotoViewer();
     }
 
     private void ClearPointErrors()
     {
-        _titleError = null;
-        _tagsError = null;
-        _generalError = null;
-        _deleteErrors = Array.Empty<string>();
-        _attachmentErrors = Array.Empty<string>();
+        _pointEditor.ClearErrors();
+        _attachments.ClearErrors();
     }
 
     private void ClearAttachmentErrors()
     {
-        _attachmentErrors = Array.Empty<string>();
-    }
-
-    private void ClearCollectionErrors()
-    {
-        _collectionNameError = null;
-        _collectionColorError = null;
-        _collectionGeneralError = null;
-        _collectionDeleteErrors = Array.Empty<string>();
+        _attachments.ClearErrors();
     }
 
     private CollectionDocument? FindCollection(Guid collectionId) =>
         _collections.FirstOrDefault(collection => collection.Id == collectionId);
-
-    private string IconChoiceClass(string iconId) =>
-        _collectionForm?.IconId == iconId
-            ? "icon-choice selected"
-            : "icon-choice";
-
-    private string ModeButtonClass(FilterMode current, FilterMode expected) =>
-        current == expected
-            ? "selected"
-            : string.Empty;
 
     private static string IconOrDefault(string iconId) =>
         string.IsNullOrWhiteSpace(iconId)
             ? PointDefaults.DefaultPinIconId
             : iconId;
 
-    private IEnumerable<AttachmentDisplayItem> GetAttachmentDisplayItems(AttachmentKind kind)
-    {
-        if (_pointForm is null)
-        {
-            return Array.Empty<AttachmentDisplayItem>();
-        }
-
-        var paths = GetCurrentLibraryPaths();
-        var savedNames = kind == AttachmentKind.Photo
-            ? _pointForm.Photos
-            : _pointForm.Files;
-        var savedDirectory = kind == AttachmentKind.Photo
-            ? paths?.PhotosPath
-            : paths?.FilesPath;
-        var savedItems = savedNames.Select(name => new AttachmentDisplayItem(
-            Kind: kind,
-            DisplayName: RestoreOriginalFileName(name),
-            Path: savedDirectory is null ? name : Path.Combine(savedDirectory, name),
-            StoredName: name,
-            IsPending: false));
-        var pendingItems = _pendingAttachments
-            .Where(attachment => attachment.Kind == kind)
-            .Select(attachment => new AttachmentDisplayItem(
-                Kind: kind,
-                DisplayName: Path.GetFileName(attachment.SourcePath),
-                Path: attachment.SourcePath,
-                StoredName: string.Empty,
-                IsPending: true));
-
-        return savedItems.Concat(pendingItems).ToArray();
-    }
-
-    private static string RestoreOriginalFileName(string storedName)
-    {
-        var extension = Path.GetExtension(storedName);
-        var baseName = Path.GetFileNameWithoutExtension(storedName);
-        var markerIndex = baseName.LastIndexOf("__", StringComparison.Ordinal);
-
-        return markerIndex < 0
-            ? storedName
-            : $"{baseName[..markerIndex]}{extension}";
-    }
-
-    private static string ToImageSource(string filePath) =>
-        new Uri(filePath).AbsoluteUri;
-
-    private static PointDocument ClonePoint(PointDocument point) =>
-        new()
-        {
-            Id = point.Id,
-            Title = point.Title,
-            Latitude = point.Latitude,
-            Longitude = point.Longitude,
-            AddressRegion = point.AddressRegion,
-            DescriptionText = point.DescriptionText,
-            CollectionIds = point.CollectionIds.ToList(),
-            PrimaryCollectionId = point.PrimaryCollectionId,
-            TagsText = point.TagsText,
-            Photos = point.Photos.ToList(),
-            Files = point.Files.ToList(),
-        };
-
-    private static CollectionDocument CloneCollection(CollectionDocument collection) =>
-        new()
-        {
-            Id = collection.Id,
-            Name = collection.Name,
-            IconId = collection.IconId,
-            Color = collection.Color,
-            DescriptionText = collection.DescriptionText,
-        };
-
-    private static bool PointDocumentsEqual(PointDocument point, PointDocument? other) =>
-        other is not null &&
-        point.Id == other.Id &&
-        point.Title == other.Title &&
-        point.Latitude.Equals(other.Latitude) &&
-        point.Longitude.Equals(other.Longitude) &&
-        point.AddressRegion == other.AddressRegion &&
-        point.DescriptionText == other.DescriptionText &&
-        point.CollectionIds.SequenceEqual(other.CollectionIds) &&
-        point.PrimaryCollectionId == other.PrimaryCollectionId &&
-        point.TagsText == other.TagsText &&
-        point.Photos.SequenceEqual(other.Photos) &&
-        point.Files.SequenceEqual(other.Files);
-
-    private static bool CollectionDocumentsEqual(CollectionDocument collection, CollectionDocument? other) =>
-        other is not null &&
-        collection.Id == other.Id &&
-        collection.Name == other.Name &&
-        collection.IconId == other.IconId &&
-        collection.Color == other.Color &&
-        collection.DescriptionText == other.DescriptionText;
-
-    private sealed record AttachmentDisplayItem(
-        AttachmentKind Kind,
-        string DisplayName,
-        string Path,
-        string StoredName,
-        bool IsPending);
 }

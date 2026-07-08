@@ -1,0 +1,28 @@
+<footer class="status-bar">
+    <span>Visible: @VisiblePointCount / Total: @TotalPointCount</span>
+    <span>@Message</span>
+    <div class="status-action">
+        <span class="muted">@SelectedCoordinateStatus</span>
+        <button disabled="@AddPointDisabled" @onclick="OnAddPoint">Add point</button>
+    </div>
+</footer>
+
+@code {
+    [Parameter]
+    public int VisiblePointCount { get; set; }
+
+    [Parameter]
+    public int TotalPointCount { get; set; }
+
+    [Parameter]
+    public string Message { get; set; } = string.Empty;
+
+    [Parameter]
+    public string SelectedCoordinateStatus { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool AddPointDisabled { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddPoint { get; set; }
+}

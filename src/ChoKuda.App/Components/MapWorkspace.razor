@@ -1,0 +1,100 @@
+<section class="map-stage">
+    @if (IsLibraryReady)
+    {
+        @if (HasStadiaApiKey)
+        {
+            <MapView @ref="_mapView"
+                     ApiKey="@StadiaApiKey"
+                     Points="@Points"
+                     TemporaryMarker="@TemporaryMarker"
+                     OnMapClick="OnMapClick"
+                     OnPointClick="OnPointClick"
+                     OnEscape="OnEscape" />
+        }
+        else
+        {
+            <SettingsPanel StadiaApiKeyInput="@StadiaApiKeyInput"
+                           OnStadiaApiKeyInputChanged="OnStadiaApiKeyInputChanged"
+                           OnSaveStadiaApiKey="OnSaveStadiaApiKey" />
+        }
+    }
+    else
+    {
+        <div class="library-setup">
+            <h2>@LibrarySetupTitle</h2>
+            <p>@LibrarySetupMessage</p>
+            <code>@DefaultLibraryPath</code>
+            <div class="setup-actions">
+                <button @onclick="OnCreateDefaultLibrary">Create default library</button>
+                <button @onclick="OnChooseLibrary">Choose folder</button>
+                <button @onclick="OnExit">Exit</button>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private MapView? _mapView;
+
+    [Parameter]
+    public bool IsLibraryReady { get; set; }
+
+    [Parameter]
+    public bool HasStadiaApiKey { get; set; }
+
+    [Parameter]
+    public string StadiaApiKey { get; set; } = string.Empty;
+
+    [Parameter]
+    public string StadiaApiKeyInput { get; set; } = string.Empty;
+
+    [Parameter]
+    public IReadOnlyList<MapPoint> Points { get; set; } = Array.Empty<MapPoint>();
+
+    [Parameter]
+    public MapCoordinate? TemporaryMarker { get; set; }
+
+    [Parameter]
+    public string LibrarySetupTitle { get; set; } = string.Empty;
+
+    [Parameter]
+    public string LibrarySetupMessage { get; set; } = string.Empty;
+
+    [Parameter]
+    public string DefaultLibraryPath { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> OnStadiaApiKeyInputChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnSaveStadiaApiKey { get; set; }
+
+    [Parameter]
+    public EventCallback OnCreateDefaultLibrary { get; set; }
+
+    [Parameter]
+    public EventCallback OnChooseLibrary { get; set; }
+
+    [Parameter]
+    public EventCallback OnExit { get; set; }
+
+    [Parameter]
+    public EventCallback<MapCoordinate> OnMapClick { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnPointClick { get; set; }
+
+    [Parameter]
+    public EventCallback OnEscape { get; set; }
+
+    public async Task CenterOnAsync(double latitude, double longitude)
+    {
+        if (_mapView is null)
+        {
+            return;
+        }
+
+        await _mapView.CenterOnAsync(latitude, longitude);
+    }
+
+}

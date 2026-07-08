@@ -1,0 +1,52 @@
+<section class="panel-section">
+    <h2>Search</h2>
+    <div class="search-row">
+        <input placeholder="Search places" @bind="Search.Input" @bind:event="oninput" />
+        <button disabled="@(!Search.CanRunSearch)" @onclick="OnSearch">Search</button>
+        <button disabled="@(!Search.IsActive)" @onclick="OnReset">Reset search</button>
+    </div>
+</section>
+
+<section class="panel-section">
+    <h2>Search Results</h2>
+    @if (!Search.IsActive)
+    {
+        <p class="muted">No active search.</p>
+    }
+    else if (!Results.Any())
+    {
+        <p class="muted">No points found.</p>
+    }
+    else
+    {
+        <div class="search-results">
+            @foreach (var point in Results)
+            {
+                <button class="search-result-row" @onclick="() => OnResultSelected.InvokeAsync(point.Id)">
+                    <span>@point.Title</span>
+                    @if (!string.IsNullOrWhiteSpace(point.AddressRegion))
+                    {
+                        <small>@point.AddressRegion</small>
+                    }
+                </button>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public SearchViewModel Search { get; set; } = null!;
+
+    [Parameter]
+    public IEnumerable<PointDocument> Results { get; set; } = Array.Empty<PointDocument>();
+
+    [Parameter]
+    public EventCallback OnSearch { get; set; }
+
+    [Parameter]
+    public EventCallback OnReset { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnResultSelected { get; set; }
+}

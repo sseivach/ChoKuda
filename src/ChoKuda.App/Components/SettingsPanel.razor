@@ -1,0 +1,26 @@
+<div class="library-setup">
+    <h2>Stadia Maps API key required</h2>
+    <p>Add your Stadia Maps API key to load the online map.</p>
+    <input value="@StadiaApiKeyInput"
+           @oninput="UpdateStadiaApiKeyInput"
+           placeholder="Stadia API key" />
+    <div class="setup-actions">
+        <button @onclick="OnSaveStadiaApiKey">Save API key</button>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string StadiaApiKeyInput { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> OnStadiaApiKeyInputChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnSaveStadiaApiKey { get; set; }
+
+    private async Task UpdateStadiaApiKeyInput(ChangeEventArgs eventArgs)
+    {
+        await OnStadiaApiKeyInputChanged.InvokeAsync(eventArgs.Value?.ToString() ?? string.Empty);
+    }
+}

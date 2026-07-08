@@ -1,0 +1,85 @@
+<section class="panel-section">
+    <button @onclick="OnAddFiles">Add files</button>
+</section>
+
+<section class="panel-section">
+    <h3>Photos</h3>
+    @if (!Photos.Any())
+    {
+        <div class="empty-box">No photos.</div>
+    }
+    else
+    {
+        <div class="photo-grid">
+            @foreach (var photo in Photos)
+            {
+                <div class="photo-tile">
+                    <button class="photo-preview" @onclick="() => OnOpenPhoto.InvokeAsync(photo.Path)">
+                        <img src="@AttachmentDraftState.ToImageSource(photo.Path)" alt="@photo.DisplayName" />
+                    </button>
+                    <span title="@photo.DisplayName">@photo.DisplayName</span>
+                    <button class="compact-button"
+                            @onclick="() => OnRemove.InvokeAsync(photo)">
+                        Delete
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+<section class="panel-section">
+    <h3>Files</h3>
+    @if (!Files.Any())
+    {
+        <div class="empty-box">No files.</div>
+    }
+    else
+    {
+        <div class="file-list">
+            @foreach (var file in Files)
+            {
+                <div class="file-row">
+                    <button @onclick="() => OnOpenFile.InvokeAsync(file)">@file.DisplayName</button>
+                    <button class="compact-button"
+                            @onclick="() => OnRemove.InvokeAsync(file)">
+                        Delete
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@if (Errors.Count > 0)
+{
+    <div class="error-box">
+        @foreach (var error in Errors)
+        {
+            <p>@error</p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IEnumerable<AttachmentDisplayItem> Photos { get; set; } = Array.Empty<AttachmentDisplayItem>();
+
+    [Parameter]
+    public IEnumerable<AttachmentDisplayItem> Files { get; set; } = Array.Empty<AttachmentDisplayItem>();
+
+    [Parameter]
+    public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public EventCallback OnAddFiles { get; set; }
+
+    [Parameter]
+    public EventCallback<AttachmentDisplayItem> OnRemove { get; set; }
+
+    [Parameter]
+    public EventCallback<AttachmentDisplayItem> OnOpenFile { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnOpenPhoto { get; set; }
+}

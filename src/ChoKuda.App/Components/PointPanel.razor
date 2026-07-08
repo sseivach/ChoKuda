@@ -1,0 +1,204 @@
+@if (IsOpen && Editor.Form is { } point)
+{
+    <aside class="right-panel">
+        <header class="panel-header">
+            <div>
+                <h2>@PanelTitle</h2>
+                <p>@PanelSubtitle</p>
+            </div>
+            <button class="icon-button" title="Close point panel" @onclick="OnClose">Close</button>
+        </header>
+
+        <section class="panel-section">
+            <label>
+                Title
+                <input @bind="point.Title" />
+            </label>
+            @if (!string.IsNullOrWhiteSpace(Editor.TitleError))
+            {
+                <p class="field-error">@Editor.TitleError</p>
+            }
+        </section>
+
+        <section class="panel-section">
+            <h3>Coordinates</h3>
+            <div class="coordinate-grid">
+                <label>
+                    Latitude
+                    <input value="@point.Latitude.ToString("F6")" readonly />
+                </label>
+                <label>
+                    Longitude
+                    <input value="@point.Longitude.ToString("F6")" readonly />
+                </label>
+            </div>
+        </section>
+
+        <section class="panel-section">
+            <label>
+                Address / Region
+                <input @bind="point.AddressRegion" />
+            </label>
+        </section>
+
+        <section class="panel-section">
+            <h3>Description</h3>
+            <textarea @bind="point.DescriptionText"></textarea>
+        </section>
+
+        <section class="panel-section">
+            <label>
+                Tags
+                <input @bind="point.TagsText" placeholder="#hardmode #safe #rentcar" />
+            </label>
+            @if (!string.IsNullOrWhiteSpace(Editor.TagsError))
+            {
+                <p class="field-error">@Editor.TagsError</p>
+            }
+        </section>
+
+        <section class="panel-section">
+            <h3>Collections</h3>
+            @if (Collections.Count == 0)
+            {
+                <div class="empty-box">Create collections in the left panel.</div>
+            }
+            else
+            {
+                @foreach (var collection in OrderedCollections)
+                {
+                    <label class="check-row">
+                        <input type="checkbox"
+                               checked="@Editor.IsInCollection(collection.Id)"
+                               @onchange="eventArgs => TogglePointCollection(collection.Id, eventArgs.Value is true)" />
+                        <span class="collection-style small" style="background:@collection.Color">
+                            <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
+                        </span>
+                        <span>@collection.Name</span>
+                    </label>
+                }
+
+                <label>
+                    Primary collection
+                    <select value="@(point.PrimaryCollectionId?.ToString() ?? string.Empty)"
+                            disabled="@(point.CollectionIds.Count == 0)"
+                            @onchange="HandlePrimaryCollectionChanged">
+                        <option value="">None</option>
+                        @foreach (var collection in SelectedPointCollections)
+                        {
+                            <option value="@collection.Id">@collection.Name</option>
+                        }
+                    </select>
+                </label>
+            }
+        </section>
+
+        <AttachmentPanel Photos="Photos"
+                         Files="Files"
+                         Errors="AttachmentErrors"
+                         OnAddFiles="OnAddFiles"
+                         OnRemove="OnRemoveAttachment"
+                         OnOpenFile="OnOpenAttachment"
+                         OnOpenPhoto="OnOpenPhoto" />
+
+        @if (!string.IsNullOrWhiteSpace(Editor.GeneralError))
+        {
+            <p class="field-error">@Editor.GeneralError</p>
+        }
+
+        @if (Editor.DeleteErrors.Count > 0)
+        {
+            <div class="error-box">
+                @foreach (var error in Editor.DeleteErrors)
+                {
+                    <p>@error</p>
+                }
+            </div>
+        }
+
+        <div class="panel-actions">
+            <button @onclick="OnSave">Save</button>
+            @if (!Editor.IsNew)
+            {
+                <button class="danger-button" @onclick="OnDelete">Delete</button>
+            }
+        </div>
+    </aside>
+}
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter, EditorRequired]
+    public PointEditorViewModel Editor { get; set; } = null!;
+
+    [Parameter]
+    public IReadOnlyList<CollectionDocument> Collections { get; set; } = Array.Empty<CollectionDocument>();
+
+    [Parameter]
+    public IEnumerable<AttachmentDisplayItem> Photos { get; set; } = Array.Empty<AttachmentDisplayItem>();
+
+    [Parameter]
+    public IEnumerable<AttachmentDisplayItem> Files { get; set; } = Array.Empty<AttachmentDisplayItem>();
+
+    [Parameter]
+    public IReadOnlyList<string> AttachmentErrors { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnDelete { get; set; }
+
+    [Parameter]
+    public EventCallback OnAddFiles { get; set; }
+
+    [Parameter]
+    public EventCallback<AttachmentDisplayItem> OnRemoveAttachment { get; set; }
+
+    [Parameter]
+    public EventCallback<AttachmentDisplayItem> OnOpenAttachment { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnOpenPhoto { get; set; }
+
+    private string PanelTitle =>
+        Editor.IsNew ? "New point" : "Edit point";
+
+    private string PanelSubtitle =>
+        Editor.IsNew ? "Unsaved draft" : "Saved point";
+
+    private IEnumerable<CollectionDocument> OrderedCollections =>
+        Collections.OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase);
+
+    private IEnumerable<CollectionDocument> SelectedPointCollections =>
+        Collections
+            .Where(collection => Editor.Form?.CollectionIds.Contains(collection.Id) == true)
+            .OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase);
+
+    private void TogglePointCollection(Guid collectionId, bool isSelected)
+    {
+        Editor.ToggleCollection(
+            collectionId,
+            isSelected,
+            Collections.Select(collection => new CollectionSummary(collection.Id, collection.Name)).ToArray());
+    }
+
+    private void HandlePrimaryCollectionChanged(ChangeEventArgs eventArgs)
+    {
+        var value = eventArgs.Value?.ToString();
+        Editor.SetPrimaryCollection(
+            Guid.TryParse(value, out var collectionId)
+                ? collectionId
+                : null);
+    }
+
+    private static string IconOrDefault(string iconId) =>
+        string.IsNullOrWhiteSpace(iconId)
+            ? PointDefaults.DefaultPinIconId
+            : iconId;
+}

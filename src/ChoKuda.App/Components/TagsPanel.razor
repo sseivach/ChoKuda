@@ -1,0 +1,65 @@
+<section class="panel-section tags-section">
+    <div class="filter-header">
+        <h2>Tags</h2>
+        <button class="compact-button" @onclick="ResetTags">Reset tags</button>
+    </div>
+    <div class="segmented-control">
+        <button class="@ModeButtonClass(Filters.TagMode, FilterMode.Any)"
+                @onclick="() => SetTagMode(FilterMode.Any)">
+            OR
+        </button>
+        <button class="@ModeButtonClass(Filters.TagMode, FilterMode.All)"
+                @onclick="() => SetTagMode(FilterMode.All)">
+            AND
+        </button>
+    </div>
+
+    @if (Tags.Count == 0)
+    {
+        <p class="muted">No tags yet.</p>
+    }
+    else
+    {
+        @foreach (var tag in Tags)
+        {
+            <label class="check-row">
+                <input type="checkbox"
+                       checked="@Filters.SelectedTags.Contains(tag)"
+                       @onchange="eventArgs => ToggleTag(tag, eventArgs.Value is true)" />
+                <span>@tag</span>
+            </label>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public FilterViewModel Filters { get; set; } = null!;
+
+    [Parameter]
+    public IReadOnlyList<string> Tags { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private async Task ResetTags()
+    {
+        Filters.ResetTags();
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task SetTagMode(FilterMode mode)
+    {
+        Filters.SetTagMode(mode);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ToggleTag(string tag, bool isSelected)
+    {
+        Filters.ToggleTag(tag, isSelected);
+        await OnChanged.InvokeAsync();
+    }
+
+    private static string ModeButtonClass(FilterMode current, FilterMode expected) =>
+        current == expected ? "selected" : string.Empty;
+}

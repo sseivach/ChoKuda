@@ -1,0 +1,206 @@
+<section class="panel-section collections-section">
+    <div class="section-title-row">
+        <h2>Collections</h2>
+        <button class="compact-button" @onclick="OnNewCollection">+ Collection</button>
+    </div>
+
+    @if (Editor.Form is { } form)
+    {
+        <div class="inline-form">
+            <label>
+                Name
+                <input @bind="form.Name" />
+            </label>
+            @if (!string.IsNullOrWhiteSpace(Editor.NameError))
+            {
+                <p class="field-error">@Editor.NameError</p>
+            }
+
+            <label>
+                Icon
+                <input @bind="Editor.IconSearch" @bind:event="oninput" placeholder="Search icon name" />
+            </label>
+            <div class="icon-grid">
+                @foreach (var iconId in Editor.FilteredIconIds)
+                {
+                    <button class="@Editor.IconChoiceClass(iconId)"
+                            title="@iconId"
+                            @onclick="() => Editor.SelectIcon(iconId)">
+                        <i class="bi bi-@iconId"></i>
+                    </button>
+                }
+            </div>
+
+            <label>
+                Color
+                <span class="color-row">
+                    <input type="color" @bind="form.Color" />
+                    <code>@form.Color</code>
+                </span>
+            </label>
+            @if (!string.IsNullOrWhiteSpace(Editor.ColorError))
+            {
+                <p class="field-error">@Editor.ColorError</p>
+            }
+
+            <label>
+                Description
+                <textarea class="compact-textarea" @bind="form.DescriptionText"></textarea>
+            </label>
+
+            @if (!string.IsNullOrWhiteSpace(Editor.GeneralError))
+            {
+                <p class="field-error">@Editor.GeneralError</p>
+            }
+
+            @if (Editor.DeleteErrors.Count > 0)
+            {
+                <div class="error-box">
+                    @foreach (var error in Editor.DeleteErrors)
+                    {
+                        <p>@error</p>
+                    }
+                </div>
+            }
+
+            <div class="panel-actions inline-actions">
+                <button @onclick="OnSaveCollection">Save</button>
+                <button @onclick="OnCancelCollectionEdit">Cancel</button>
+                @if (!Editor.IsNew)
+                {
+                    <button class="danger-button" @onclick="OnDeleteCollection">Delete</button>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="collection-list">
+        @foreach (var collection in OrderedCollections)
+        {
+            <button class="collection-row" @onclick="() => OnEditCollection.InvokeAsync(collection.Id)">
+                <span class="collection-style" style="background:@collection.Color">
+                    <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
+                </span>
+                <span>@collection.Name</span>
+            </button>
+        }
+    </div>
+
+    <div class="filter-block">
+        <div class="filter-header">
+            <strong>Filter</strong>
+            <button class="compact-button" @onclick="ResetCollectionFilter">Reset collections</button>
+        </div>
+        <div class="segmented-control">
+            <button class="@ModeButtonClass(Filters.CollectionMode, FilterMode.Any)"
+                    @onclick="() => SetCollectionFilterMode(FilterMode.Any)">
+                OR
+            </button>
+            <button class="@ModeButtonClass(Filters.CollectionMode, FilterMode.All)"
+                    @onclick="() => SetCollectionFilterMode(FilterMode.All)">
+                AND
+            </button>
+        </div>
+
+        @foreach (var collection in OrderedCollections)
+        {
+            <label class="check-row">
+                <input type="checkbox"
+                       checked="@Filters.SelectedCollectionIds.Contains(collection.Id)"
+                       @onchange="eventArgs => ToggleCollectionFilter(collection.Id, eventArgs.Value is true)" />
+                <span>@collection.Name</span>
+            </label>
+        }
+
+        @if (Filters.SelectedCollectionIds.Count > 0)
+        {
+            <div class="drag-list">
+                @foreach (var collectionId in Filters.SelectedCollectionIds)
+                {
+                    var collection = FindCollection(collectionId);
+                    if (collection is not null)
+                    {
+                        <div class="drag-row"
+                             draggable="true"
+                             @ondragstart="() => Filters.StartCollectionDrag(collectionId)"
+                             @ondragover:preventDefault="true"
+                             @ondrop="() => DropCollectionFilter(collectionId)">
+                            <i class="bi bi-grip-vertical"></i>
+                            <span class="collection-style small" style="background:@collection.Color">
+                                <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
+                            </span>
+                            <span>@collection.Name</span>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public CollectionEditorViewModel Editor { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public FilterViewModel Filters { get; set; } = null!;
+
+    [Parameter]
+    public IReadOnlyList<CollectionDocument> Collections { get; set; } = Array.Empty<CollectionDocument>();
+
+    [Parameter]
+    public EventCallback OnNewCollection { get; set; }
+
+    [Parameter]
+    public EventCallback<Guid> OnEditCollection { get; set; }
+
+    [Parameter]
+    public EventCallback OnSaveCollection { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelCollectionEdit { get; set; }
+
+    [Parameter]
+    public EventCallback OnDeleteCollection { get; set; }
+
+    [Parameter]
+    public EventCallback OnFilterChanged { get; set; }
+
+    private IEnumerable<CollectionDocument> OrderedCollections =>
+        Collections.OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase);
+
+    private async Task ToggleCollectionFilter(Guid collectionId, bool isSelected)
+    {
+        Filters.ToggleCollection(collectionId, isSelected);
+        await OnFilterChanged.InvokeAsync();
+    }
+
+    private async Task SetCollectionFilterMode(FilterMode mode)
+    {
+        Filters.SetCollectionMode(mode);
+        await OnFilterChanged.InvokeAsync();
+    }
+
+    private async Task ResetCollectionFilter()
+    {
+        Filters.ResetCollections();
+        await OnFilterChanged.InvokeAsync();
+    }
+
+    private async Task DropCollectionFilter(Guid targetCollectionId)
+    {
+        if (Filters.DropCollection(targetCollectionId))
+        {
+            await OnFilterChanged.InvokeAsync();
+        }
+    }
+
+    private CollectionDocument? FindCollection(Guid collectionId) =>
+        Collections.FirstOrDefault(collection => collection.Id == collectionId);
+
+    private static string ModeButtonClass(FilterMode current, FilterMode expected) =>
+        current == expected ? "selected" : string.Empty;
+
+    private static string IconOrDefault(string iconId) =>
+        string.IsNullOrWhiteSpace(iconId) ? "geo-alt-fill" : iconId;
+}
