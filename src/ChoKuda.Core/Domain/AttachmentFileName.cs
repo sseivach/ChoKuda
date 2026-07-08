@@ -9,7 +9,7 @@ public static class AttachmentFileName
     {
         if (string.IsNullOrWhiteSpace(originalFileName))
         {
-            return $"file__{attachmentId}";
+            return $"file__{attachmentId:N}";
         }
 
         var sanitizedFileName = SanitizeFileName(originalFileName);
@@ -23,7 +23,7 @@ public static class AttachmentFileName
             sanitizedBaseName = "file";
         }
 
-        return $"{sanitizedBaseName}__{attachmentId}{sanitizedExtension}";
+        return $"{sanitizedBaseName}__{attachmentId:N}{sanitizedExtension}";
     }
 
     private static string SanitizeFileName(string fileName)

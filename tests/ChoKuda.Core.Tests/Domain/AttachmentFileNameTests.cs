@@ -8,9 +8,9 @@ public sealed class AttachmentFileNameTests
         Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
 
     [Theory]
-    [InlineData("waterfall.jpg", "waterfall__550e8400-e29b-41d4-a716-446655440000.jpg")]
-    [InlineData("my photo.png", "my photo__550e8400-e29b-41d4-a716-446655440000.png")]
-    [InlineData("guide", "guide__550e8400-e29b-41d4-a716-446655440000")]
+    [InlineData("waterfall.jpg", "waterfall__550e8400e29b41d4a716446655440000.jpg")]
+    [InlineData("my photo.png", "my photo__550e8400e29b41d4a716446655440000.png")]
+    [InlineData("guide", "guide__550e8400e29b41d4a716446655440000")]
     public void CreateStoredNameKeepsOriginalNameAndAddsGuidBeforeExtension(
         string originalName,
         string expected)
@@ -27,7 +27,7 @@ public sealed class AttachmentFileNameTests
             "wa\\te/r:fa*ll?\"<>|.jpg",
             AttachmentId);
 
-        Assert.Equal("waterfall__550e8400-e29b-41d4-a716-446655440000.jpg", storedName);
+        Assert.Equal("waterfall__550e8400e29b41d4a716446655440000.jpg", storedName);
     }
 
     [Theory]
@@ -39,7 +39,7 @@ public sealed class AttachmentFileNameTests
     {
         var storedName = AttachmentFileName.CreateStoredName(originalName, AttachmentId);
 
-        Assert.Equal("file__550e8400-e29b-41d4-a716-446655440000", storedName);
+        Assert.Equal("file__550e8400e29b41d4a716446655440000", storedName);
     }
 
     [Fact]
@@ -49,7 +49,6 @@ public sealed class AttachmentFileNameTests
             "photo.jp?g",
             AttachmentId);
 
-        Assert.Equal("photo__550e8400-e29b-41d4-a716-446655440000.jpg", storedName);
+        Assert.Equal("photo__550e8400e29b41d4a716446655440000.jpg", storedName);
     }
 }
-

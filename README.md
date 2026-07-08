@@ -15,6 +15,7 @@ Implemented:
 - Milestone 5: Point CRUD.
 - Milestone 6: Collections And Tags.
 - Milestone 7: Search.
+- Milestone 8: Photos And Files.
 - WPF + BlazorWebView shell.
 - Left panel, Leaflet map, right panel preview, bottom status bar.
 - Testable shell state in `ChoKuda.Core`.
@@ -24,11 +25,12 @@ Implemented:
 - Point creation, viewing, editing, deletion, unsaved-change confirmation, and point JSON persistence.
 - Collection CRUD, Bootstrap Icons collection styles, point collection membership, tag index, and collection/tag filters.
 - Search by title, address, description, and tags with left-panel results and map centering.
-- Unit tests for shell state, file library, domain rules, map point projection, point CRUD service, collection service, filtering rules, and search service.
+- Photo/file attachment import, classification, preview, system opening, and deletion.
+- Unit tests for shell state, file library, domain rules, map point projection, point CRUD service, collection service, filtering rules, search service, and attachment services.
 
 Not implemented yet:
 
-- Photos/files import.
+- Milestone 9 final polish and acceptance.
 
 ## Stack
 

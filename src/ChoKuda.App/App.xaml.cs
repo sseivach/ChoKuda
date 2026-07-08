@@ -1,5 +1,6 @@
 using ChoKuda.App.Services;
 using ChoKuda.Core;
+using ChoKuda.Core.Attachments;
 using ChoKuda.Core.Collections;
 using ChoKuda.Core.FileLibrary;
 using ChoKuda.Core.Points;
@@ -24,6 +25,12 @@ public partial class App : System.Windows.Application
         services.AddSingleton<FileLibraryService>();
         services.AddSingleton<PointService>();
         services.AddSingleton<CollectionService>();
+        services.AddSingleton<IImageProbe, WpfImageProbe>();
+        services.AddSingleton<AttachmentFileClassifier>();
+        services.AddSingleton<AttachmentImportService>();
+        services.AddSingleton<AttachmentDeleteService>();
+        services.AddSingleton<IAttachmentFilePicker, WpfAttachmentFilePicker>();
+        services.AddSingleton<IAttachmentOpener, WindowsAttachmentOpener>();
         services.AddSingleton<ILibraryFolderPicker, WpfLibraryFolderPicker>();
         services.AddSingleton<IApplicationShutdown, WpfApplicationShutdown>();
 

@@ -6,6 +6,11 @@
 @inject FileLibraryService FileLibraryService
 @inject PointService PointService
 @inject CollectionService CollectionService
+@inject AttachmentFileClassifier AttachmentFileClassifier
+@inject AttachmentImportService AttachmentImportService
+@inject AttachmentDeleteService AttachmentDeleteService
+@inject IAttachmentFilePicker AttachmentFilePicker
+@inject IAttachmentOpener AttachmentOpener
 @inject ILibraryFolderPicker LibraryFolderPicker
 @inject IApplicationShutdown ApplicationShutdown
 @inject IJSRuntime JsRuntime
@@ -376,13 +381,56 @@
             </section>
 
             <section class="panel-section">
+                <button @onclick="AddPendingAttachments">Add files</button>
+            </section>
+
+            <section class="panel-section">
                 <h3>Photos</h3>
-                <div class="empty-box">Photo import starts in Milestone 8.</div>
+                @if (!PhotoItems.Any())
+                {
+                    <div class="empty-box">No photos.</div>
+                }
+                else
+                {
+                    <div class="photo-grid">
+                        @foreach (var photo in PhotoItems)
+                        {
+                            <div class="photo-tile">
+                                <button class="photo-preview" @onclick="() => OpenPhotoViewer(photo.Path)">
+                                    <img src="@ToImageSource(photo.Path)" alt="@photo.DisplayName" />
+                                </button>
+                                <span title="@photo.DisplayName">@photo.DisplayName</span>
+                                <button class="compact-button"
+                                        @onclick="() => RemoveAttachment(photo)">
+                                    Delete
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
             </section>
 
             <section class="panel-section">
                 <h3>Files</h3>
-                <div class="empty-box">File import starts in Milestone 8.</div>
+                @if (!FileItems.Any())
+                {
+                    <div class="empty-box">No files.</div>
+                }
+                else
+                {
+                    <div class="file-list">
+                        @foreach (var file in FileItems)
+                        {
+                            <div class="file-row">
+                                <button @onclick="() => OpenAttachment(file)">@file.DisplayName</button>
+                                <button class="compact-button"
+                                        @onclick="() => RemoveAttachment(file)">
+                                    Delete
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
             </section>
 
             @if (!string.IsNullOrWhiteSpace(_generalError))
@@ -400,6 +448,16 @@
                 </div>
             }
 
+            @if (_attachmentErrors.Count > 0)
+            {
+                <div class="error-box">
+                    @foreach (var error in _attachmentErrors)
+                    {
+                        <p>@error</p>
+                    }
+                </div>
+            }
+
             <div class="panel-actions">
                 <button @onclick="SavePoint">Save</button>
                 @if (!_isNewPoint)
@@ -408,6 +466,17 @@
                 }
             </div>
         </aside>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_photoViewerPath))
+    {
+        <div class="photo-viewer">
+            <button class="photo-viewer-backdrop" @onclick="ClosePhotoViewer"></button>
+            <div class="photo-viewer-content">
+                <img src="@ToImageSource(_photoViewerPath)" alt="Photo preview" />
+                <button @onclick="ClosePhotoViewer">Close</button>
+            </div>
+        </div>
     }
 
     <footer class="status-bar">
@@ -464,11 +533,14 @@
     private string? _titleError;
     private string? _tagsError;
     private string? _generalError;
+    private string? _photoViewerPath;
     private string? _collectionNameError;
     private string? _collectionColorError;
     private string? _collectionGeneralError;
     private IReadOnlyList<string> _deleteErrors = Array.Empty<string>();
+    private IReadOnlyList<string> _attachmentErrors = Array.Empty<string>();
     private IReadOnlyList<string> _collectionDeleteErrors = Array.Empty<string>();
+    private List<PendingAttachment> _pendingAttachments = [];
     private int _pointLoadErrorCount;
     private int _collectionLoadErrorCount;
     private bool _isNewPoint;
@@ -544,6 +616,12 @@
         _collections
             .Where(collection => _pointForm?.CollectionIds.Contains(collection.Id) == true)
             .OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase);
+
+    private IEnumerable<AttachmentDisplayItem> PhotoItems =>
+        GetAttachmentDisplayItems(AttachmentKind.Photo);
+
+    private IEnumerable<AttachmentDisplayItem> FileItems =>
+        GetAttachmentDisplayItems(AttachmentKind.File);
 
     protected override void OnInitialized()
     {
@@ -727,6 +805,7 @@
         _selectedCoordinate = null;
         _pointForm = ClonePoint(point);
         _savedPointSnapshot = ClonePoint(point);
+        _pendingAttachments = [];
         _isNewPoint = false;
         ClearPointErrors();
         ShellState.OpenRightPanelPreview();
@@ -752,6 +831,7 @@
 
         _pointForm = PointService.CreateDraft(_selectedCoordinate.Latitude, _selectedCoordinate.Longitude);
         _savedPointSnapshot = null;
+        _pendingAttachments = [];
         _isNewPoint = true;
         ClearPointErrors();
         ShellState.OpenRightPanelPreview();
@@ -781,8 +861,35 @@
             return;
         }
 
-        _pointForm = ClonePoint(result.Point);
-        _savedPointSnapshot = ClonePoint(result.Point);
+        var savedPoint = result.Point;
+
+        if (_pendingAttachments.Count > 0)
+        {
+            var importResult = AttachmentImportService.ImportPendingAttachments(
+                paths,
+                savedPoint,
+                _pendingAttachments);
+
+            _attachmentErrors = importResult.Errors
+                .Select(error => $"{Path.GetFileName(error.SourcePath)}: {error.Message}")
+                .ToArray();
+            _pendingAttachments = [];
+
+            var attachmentSaveResult = PointService.UpdatePoint(paths, importResult.Point);
+
+            if (!attachmentSaveResult.IsSuccess || attachmentSaveResult.Point is null)
+            {
+                ApplySaveErrors(attachmentSaveResult.Errors);
+                savedPoint = importResult.Point;
+            }
+            else
+            {
+                savedPoint = attachmentSaveResult.Point;
+            }
+        }
+
+        _pointForm = ClonePoint(savedPoint);
+        _savedPointSnapshot = ClonePoint(savedPoint);
         _isNewPoint = false;
         _selectedCoordinate = null;
         LoadLibraryData();
@@ -820,6 +927,7 @@
 
         _pointForm = null;
         _savedPointSnapshot = null;
+        _pendingAttachments = [];
         _isNewPoint = false;
         ShellState.CloseRightPanel();
         LoadLibraryData();
@@ -834,6 +942,7 @@
 
         _pointForm = null;
         _savedPointSnapshot = null;
+        _pendingAttachments = [];
         _isNewPoint = false;
         _selectedCoordinate = null;
         ClearPointErrors();
@@ -1130,6 +1239,94 @@
         return new FileLibraryPaths(LibraryPath);
     }
 
+    private void AddPendingAttachments()
+    {
+        if (_pointForm is null)
+        {
+            return;
+        }
+
+        var selectedFiles = AttachmentFilePicker.PickFiles();
+
+        foreach (var filePath in selectedFiles)
+        {
+            if (_pendingAttachments.Any(attachment => string.Equals(attachment.SourcePath, filePath, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            _pendingAttachments.Add(new PendingAttachment(
+                filePath,
+                AttachmentFileClassifier.Classify(filePath)));
+        }
+    }
+
+    private async Task RemoveAttachment(AttachmentDisplayItem item)
+    {
+        if (_pointForm is null)
+        {
+            return;
+        }
+
+        ClearAttachmentErrors();
+
+        if (item.IsPending)
+        {
+            _pendingAttachments.RemoveAll(attachment => attachment.SourcePath == item.Path && attachment.Kind == item.Kind);
+            return;
+        }
+
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Delete this attachment?");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var paths = GetCurrentLibraryPaths();
+        if (paths is null)
+        {
+            return;
+        }
+
+        var result = AttachmentDeleteService.DeleteSavedAttachment(
+            paths,
+            _pointForm,
+            item.Kind,
+            item.StoredName);
+
+        if (!result.IsSuccess)
+        {
+            _attachmentErrors = result.Errors;
+            return;
+        }
+
+        _pointForm = ClonePoint(result.Point);
+        _savedPointSnapshot = ClonePoint(result.Point);
+        LoadLibraryData();
+    }
+
+    private void OpenAttachment(AttachmentDisplayItem item)
+    {
+        ClearAttachmentErrors();
+        var error = AttachmentOpener.Open(item.Path);
+
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            _attachmentErrors = [error];
+        }
+    }
+
+    private void OpenPhotoViewer(string photoPath)
+    {
+        _photoViewerPath = photoPath;
+    }
+
+    private void ClosePhotoViewer()
+    {
+        _photoViewerPath = null;
+    }
+
     private void ApplySaveErrors(IReadOnlyList<PointSaveError> errors)
     {
         _titleError = errors.FirstOrDefault(error => error.FieldName == PointService.TitleFieldName)?.Message;
@@ -1158,6 +1355,12 @@
         _tagsError = null;
         _generalError = null;
         _deleteErrors = Array.Empty<string>();
+        _attachmentErrors = Array.Empty<string>();
+    }
+
+    private void ClearAttachmentErrors()
+    {
+        _attachmentErrors = Array.Empty<string>();
     }
 
     private void ClearCollectionErrors()
@@ -1185,6 +1388,52 @@
         string.IsNullOrWhiteSpace(iconId)
             ? PointDefaults.DefaultPinIconId
             : iconId;
+
+    private IEnumerable<AttachmentDisplayItem> GetAttachmentDisplayItems(AttachmentKind kind)
+    {
+        if (_pointForm is null)
+        {
+            return Array.Empty<AttachmentDisplayItem>();
+        }
+
+        var paths = GetCurrentLibraryPaths();
+        var savedNames = kind == AttachmentKind.Photo
+            ? _pointForm.Photos
+            : _pointForm.Files;
+        var savedDirectory = kind == AttachmentKind.Photo
+            ? paths?.PhotosPath
+            : paths?.FilesPath;
+        var savedItems = savedNames.Select(name => new AttachmentDisplayItem(
+            Kind: kind,
+            DisplayName: RestoreOriginalFileName(name),
+            Path: savedDirectory is null ? name : Path.Combine(savedDirectory, name),
+            StoredName: name,
+            IsPending: false));
+        var pendingItems = _pendingAttachments
+            .Where(attachment => attachment.Kind == kind)
+            .Select(attachment => new AttachmentDisplayItem(
+                Kind: kind,
+                DisplayName: Path.GetFileName(attachment.SourcePath),
+                Path: attachment.SourcePath,
+                StoredName: string.Empty,
+                IsPending: true));
+
+        return savedItems.Concat(pendingItems).ToArray();
+    }
+
+    private static string RestoreOriginalFileName(string storedName)
+    {
+        var extension = Path.GetExtension(storedName);
+        var baseName = Path.GetFileNameWithoutExtension(storedName);
+        var markerIndex = baseName.LastIndexOf("__", StringComparison.Ordinal);
+
+        return markerIndex < 0
+            ? storedName
+            : $"{baseName[..markerIndex]}{extension}";
+    }
+
+    private static string ToImageSource(string filePath) =>
+        new Uri(filePath).AbsoluteUri;
 
     private static PointDocument ClonePoint(PointDocument point) =>
         new()
@@ -1233,4 +1482,11 @@
         collection.IconId == other.IconId &&
         collection.Color == other.Color &&
         collection.DescriptionText == other.DescriptionText;
+
+    private sealed record AttachmentDisplayItem(
+        AttachmentKind Kind,
+        string DisplayName,
+        string Path,
+        string StoredName,
+        bool IsPending);
 }
