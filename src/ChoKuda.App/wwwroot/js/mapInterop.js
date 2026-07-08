@@ -117,6 +117,16 @@ export function clearTemporaryMarker(elementId) {
     state.temporaryMarker = null;
 }
 
+export function centerOnPoint(elementId, latitude, longitude) {
+    const state = maps.get(elementId);
+
+    if (!state) {
+        return;
+    }
+
+    state.map.panTo([latitude, longitude]);
+}
+
 export function disposeMap(elementId) {
     const state = maps.get(elementId);
 

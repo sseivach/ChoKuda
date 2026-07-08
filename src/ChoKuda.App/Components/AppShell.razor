@@ -31,14 +31,37 @@
             <section class="panel-section">
                 <h2>Search</h2>
                 <div class="search-row">
-                    <input placeholder="Search places" disabled />
-                    <button disabled>Search</button>
+                    <input placeholder="Search places" @bind="_searchInput" @bind:event="oninput" />
+                    <button disabled="@(!CanRunSearch)" @onclick="RunSearch">Search</button>
+                    <button disabled="@(!IsSearchActive)" @onclick="ResetSearch">Reset search</button>
                 </div>
             </section>
 
             <section class="panel-section">
                 <h2>Search Results</h2>
-                <p class="muted">No active search.</p>
+                @if (!IsSearchActive)
+                {
+                    <p class="muted">No active search.</p>
+                }
+                else if (_filteredPoints.Count == 0)
+                {
+                    <p class="muted">No points found.</p>
+                }
+                else
+                {
+                    <div class="search-results">
+                        @foreach (var point in SearchResults)
+                        {
+                            <button class="search-result-row" @onclick="() => OpenSearchResult(point.Id)">
+                                <span>@point.Title</span>
+                                @if (!string.IsNullOrWhiteSpace(point.AddressRegion))
+                                {
+                                    <small>@point.AddressRegion</small>
+                                }
+                            </button>
+                        }
+                    </div>
+                }
             </section>
 
             <section class="panel-section collections-section">
@@ -61,7 +84,7 @@
 
                         <label>
                             Icon
-                            <input @bind="_iconSearch" placeholder="Search icon name" />
+                            <input @bind="_iconSearch" @bind:event="oninput" placeholder="Search icon name" />
                         </label>
                         <div class="icon-grid">
                             @foreach (var iconId in FilteredIconIds)
@@ -222,7 +245,8 @@
         {
             @if (HasStadiaApiKey)
             {
-                <MapView ApiKey="@StadiaApiKey"
+                <MapView @ref="_mapView"
+                         ApiKey="@StadiaApiKey"
                          Points="@_mapPoints"
                          TemporaryMarker="@_selectedCoordinate"
                          OnMapClick="HandleMapClick"
@@ -424,6 +448,7 @@
     private IReadOnlyList<string> _tagIndex = Array.Empty<string>();
     private readonly List<Guid> _selectedCollectionFilterIds = [];
     private readonly List<string> _selectedTagFilters = [];
+    private MapView? _mapView;
     private FilterMode _collectionFilterMode = FilterMode.Any;
     private FilterMode _tagFilterMode = FilterMode.Any;
     private Guid? _draggedCollectionFilterId;
@@ -433,6 +458,8 @@
     private CollectionDocument? _collectionForm;
     private CollectionDocument? _savedCollectionSnapshot;
     private string _stadiaApiKeyInput = string.Empty;
+    private string _searchInput = string.Empty;
+    private string? _activeSearchQuery;
     private string _iconSearch = string.Empty;
     private string? _titleError;
     private string? _tagsError;
@@ -479,6 +506,7 @@
         _isNewPoint ? "Unsaved draft" : "Saved point";
 
     private string StatusMessage =>
+        $"Search: {(IsSearchActive ? "active" : "none")} | " +
         $"Collections: {_selectedCollectionFilterIds.Count} {_collectionFilterMode.ToString().ToUpperInvariant()} | " +
         $"Tags: {_selectedTagFilters.Count} {_tagFilterMode.ToString().ToUpperInvariant()} | " +
         $"JSON errors: {_pointLoadErrorCount + _collectionLoadErrorCount}";
@@ -495,6 +523,17 @@
     private bool HasUnsavedCollectionChanges =>
         _collectionForm is not null &&
         (_isNewCollection || !CollectionDocumentsEqual(_collectionForm, _savedCollectionSnapshot));
+
+    private bool IsSearchActive =>
+        !string.IsNullOrWhiteSpace(_activeSearchQuery);
+
+    private bool CanRunSearch =>
+        !string.IsNullOrWhiteSpace(_searchInput);
+
+    private IEnumerable<PointDocument> SearchResults =>
+        _filteredPoints
+            .OrderBy(point => point.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(point => point.Id);
 
     private IEnumerable<string> FilteredIconIds =>
         BootstrapIconIds
@@ -602,8 +641,12 @@
 
     private void ApplyFiltersAndMapProjection()
     {
+        var searchedPoints = IsSearchActive
+            ? SearchService.Apply(_allPoints, _activeSearchQuery!)
+            : _allPoints;
+
         _filteredPoints = PointFilterService.Apply(
-            _allPoints,
+            searchedPoints,
             new PointFilterOptions(
                 _selectedCollectionFilterIds,
                 _collectionFilterMode,
@@ -642,22 +685,43 @@
 
     private async Task HandlePointClick(Guid pointId)
     {
+        await OpenSavedPoint(pointId);
+    }
+
+    private async Task OpenSearchResult(Guid pointId)
+    {
+        var point = _allPoints.FirstOrDefault(point => point.Id == pointId);
+
+        if (point is null)
+        {
+            LoadLibraryData();
+            return;
+        }
+
+        if (await OpenSavedPoint(pointId) && _mapView is not null)
+        {
+            await _mapView.CenterOnAsync(point.Latitude, point.Longitude);
+        }
+    }
+
+    private async Task<bool> OpenSavedPoint(Guid pointId)
+    {
         if (!await ConfirmDiscardChangesIfNeeded())
         {
-            return;
+            return false;
         }
 
         var paths = GetCurrentLibraryPaths();
         if (paths is null)
         {
-            return;
+            return false;
         }
 
         var point = PointService.LoadPoint(paths, pointId);
         if (point is null)
         {
             LoadLibraryData();
-            return;
+            return false;
         }
 
         _selectedCoordinate = null;
@@ -666,6 +730,7 @@
         _isNewPoint = false;
         ClearPointErrors();
         ShellState.OpenRightPanelPreview();
+        return true;
     }
 
     private void ClearSelectedCoordinate()
@@ -1013,6 +1078,24 @@
     private void ResetTagFilter()
     {
         _selectedTagFilters.Clear();
+        ApplyFiltersAndMapProjection();
+    }
+
+    private void RunSearch()
+    {
+        if (!CanRunSearch)
+        {
+            return;
+        }
+
+        _activeSearchQuery = SearchService.NormalizeQuery(_searchInput);
+        ApplyFiltersAndMapProjection();
+    }
+
+    private void ResetSearch()
+    {
+        _searchInput = string.Empty;
+        _activeSearchQuery = null;
         ApplyFiltersAndMapProjection();
     }
 

@@ -155,8 +155,26 @@ textarea {
 
 .search-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 8px;
+}
+
+.search-results {
+    display: grid;
+    gap: 6px;
+}
+
+.search-result-row {
+    display: grid;
+    width: 100%;
+    min-height: 44px;
+    align-content: center;
+    justify-items: start;
+    text-align: left;
+}
+
+.search-result-row small {
+    color: #756d62;
 }
 
 .section-title-row,

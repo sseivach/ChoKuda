@@ -86,6 +86,16 @@
         _dotNetReference?.Dispose();
     }
 
+    public async Task CenterOnAsync(double latitude, double longitude)
+    {
+        if (_module is null || !_initialized)
+        {
+            return;
+        }
+
+        await _module.InvokeVoidAsync("centerOnPoint", _mapElementId, latitude, longitude);
+    }
+
     private async Task SyncMapAsync()
     {
         if (_module is null)

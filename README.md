@@ -14,6 +14,7 @@ Implemented:
 - Milestone 4: Map Integration.
 - Milestone 5: Point CRUD.
 - Milestone 6: Collections And Tags.
+- Milestone 7: Search.
 - WPF + BlazorWebView shell.
 - Left panel, Leaflet map, right panel preview, bottom status bar.
 - Testable shell state in `ChoKuda.Core`.
@@ -22,12 +23,12 @@ Implemented:
 - Leaflet + Stadia raster map with marker clustering, temporary point selection, and Stadia API key setup.
 - Point creation, viewing, editing, deletion, unsaved-change confirmation, and point JSON persistence.
 - Collection CRUD, Bootstrap Icons collection styles, point collection membership, tag index, and collection/tag filters.
-- Unit tests for shell state, file library, domain rules, map point projection, point CRUD service, collection service, and filtering rules.
+- Search by title, address, description, and tags with left-panel results and map centering.
+- Unit tests for shell state, file library, domain rules, map point projection, point CRUD service, collection service, filtering rules, and search service.
 
 Not implemented yet:
 
 - Photos/files import.
-- Search.
 
 ## Stack
 
