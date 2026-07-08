@@ -36,15 +36,15 @@
             <section class="panel-section">
                 <h2>Search</h2>
                 <div class="search-row">
-                    <input placeholder="Search places" @bind="_searchInput" @bind:event="oninput" />
-                    <button disabled="@(!CanRunSearch)" @onclick="RunSearch">Search</button>
-                    <button disabled="@(!IsSearchActive)" @onclick="ResetSearch">Reset search</button>
+                    <input placeholder="Search places" @bind="_search.Input" @bind:event="oninput" />
+                    <button disabled="@(!_search.CanRunSearch)" @onclick="RunSearch">Search</button>
+                    <button disabled="@(!_search.IsActive)" @onclick="ResetSearch">Reset search</button>
                 </div>
             </section>
 
             <section class="panel-section">
                 <h2>Search Results</h2>
-                @if (!IsSearchActive)
+                @if (!_search.IsActive)
                 {
                     <p class="muted">No active search.</p>
                 }
@@ -163,11 +163,11 @@
                         <button class="compact-button" @onclick="ResetCollectionFilter">Reset collections</button>
                     </div>
                     <div class="segmented-control">
-                        <button class="@ModeButtonClass(_collectionFilterMode, FilterMode.Any)"
+                        <button class="@ModeButtonClass(_filters.CollectionMode, FilterMode.Any)"
                                 @onclick="() => SetCollectionFilterMode(FilterMode.Any)">
                             OR
                         </button>
-                        <button class="@ModeButtonClass(_collectionFilterMode, FilterMode.All)"
+                        <button class="@ModeButtonClass(_filters.CollectionMode, FilterMode.All)"
                                 @onclick="() => SetCollectionFilterMode(FilterMode.All)">
                             AND
                         </button>
@@ -177,16 +177,16 @@
                     {
                         <label class="check-row">
                             <input type="checkbox"
-                                   checked="@_selectedCollectionFilterIds.Contains(collection.Id)"
+                                   checked="@_filters.SelectedCollectionIds.Contains(collection.Id)"
                                    @onchange="eventArgs => ToggleCollectionFilter(collection.Id, eventArgs.Value is true)" />
                             <span>@collection.Name</span>
                         </label>
                     }
 
-                    @if (_selectedCollectionFilterIds.Count > 0)
+                    @if (_filters.SelectedCollectionIds.Count > 0)
                     {
                         <div class="drag-list">
-                            @foreach (var collectionId in _selectedCollectionFilterIds)
+                            @foreach (var collectionId in _filters.SelectedCollectionIds)
                             {
                                 var collection = FindCollection(collectionId);
                                 if (collection is not null)
@@ -215,11 +215,11 @@
                     <button class="compact-button" @onclick="ResetTagFilter">Reset tags</button>
                 </div>
                 <div class="segmented-control">
-                    <button class="@ModeButtonClass(_tagFilterMode, FilterMode.Any)"
+                    <button class="@ModeButtonClass(_filters.TagMode, FilterMode.Any)"
                             @onclick="() => SetTagFilterMode(FilterMode.Any)">
                         OR
                     </button>
-                    <button class="@ModeButtonClass(_tagFilterMode, FilterMode.All)"
+                    <button class="@ModeButtonClass(_filters.TagMode, FilterMode.All)"
                             @onclick="() => SetTagFilterMode(FilterMode.All)">
                         AND
                     </button>
@@ -235,7 +235,7 @@
                     {
                         <label class="check-row">
                             <input type="checkbox"
-                                   checked="@_selectedTagFilters.Contains(tag)"
+                                   checked="@_filters.SelectedTags.Contains(tag)"
                                    @onchange="eventArgs => ToggleTagFilter(tag, eventArgs.Value is true)" />
                             <span>@tag</span>
                         </label>
@@ -515,20 +515,15 @@
     private IReadOnlyList<CollectionDocument> _collections = Array.Empty<CollectionDocument>();
     private IReadOnlyList<MapPoint> _mapPoints = Array.Empty<MapPoint>();
     private IReadOnlyList<string> _tagIndex = Array.Empty<string>();
-    private readonly List<Guid> _selectedCollectionFilterIds = [];
-    private readonly List<string> _selectedTagFilters = [];
     private MapView? _mapView;
-    private FilterMode _collectionFilterMode = FilterMode.Any;
-    private FilterMode _tagFilterMode = FilterMode.Any;
-    private Guid? _draggedCollectionFilterId;
     private MapCoordinate? _selectedCoordinate;
     private PointDocument? _pointForm;
     private PointDocument? _savedPointSnapshot;
     private CollectionDocument? _collectionForm;
     private CollectionDocument? _savedCollectionSnapshot;
+    private readonly SearchViewModel _search = new();
+    private readonly FilterViewModel _filters = new();
     private string _stadiaApiKeyInput = string.Empty;
-    private string _searchInput = string.Empty;
-    private string? _activeSearchQuery;
     private string _iconSearch = string.Empty;
     private string? _titleError;
     private string? _tagsError;
@@ -578,9 +573,9 @@
         _isNewPoint ? "Unsaved draft" : "Saved point";
 
     private string StatusMessage =>
-        $"Search: {(IsSearchActive ? "active" : "none")} | " +
-        $"Collections: {_selectedCollectionFilterIds.Count} {_collectionFilterMode.ToString().ToUpperInvariant()} | " +
-        $"Tags: {_selectedTagFilters.Count} {_tagFilterMode.ToString().ToUpperInvariant()} | " +
+        $"Search: {(_search.IsActive ? "active" : "none")} | " +
+        $"Collections: {_filters.SelectedCollectionIds.Count} {_filters.CollectionMode.ToString().ToUpperInvariant()} | " +
+        $"Tags: {_filters.SelectedTags.Count} {_filters.TagMode.ToString().ToUpperInvariant()} | " +
         $"JSON errors: {_pointLoadErrorCount + _collectionLoadErrorCount}";
 
     private string ShellClass =>
@@ -595,12 +590,6 @@
     private bool HasUnsavedCollectionChanges =>
         _collectionForm is not null &&
         (_isNewCollection || !CollectionDocumentsEqual(_collectionForm, _savedCollectionSnapshot));
-
-    private bool IsSearchActive =>
-        !string.IsNullOrWhiteSpace(_activeSearchQuery);
-
-    private bool CanRunSearch =>
-        !string.IsNullOrWhiteSpace(_searchInput);
 
     private IEnumerable<PointDocument> SearchResults =>
         _filteredPoints
@@ -719,27 +708,20 @@
 
     private void ApplyFiltersAndMapProjection()
     {
-        var searchedPoints = IsSearchActive
-            ? SearchService.Apply(_allPoints, _activeSearchQuery!)
-            : _allPoints;
+        var searchedPoints = _search.Apply(_allPoints);
 
-        _filteredPoints = PointFilterService.Apply(
-            searchedPoints,
-            new PointFilterOptions(
-                _selectedCollectionFilterIds,
-                _collectionFilterMode,
-                _selectedTagFilters,
-                _tagFilterMode));
+        _filteredPoints = _filters.Apply(searchedPoints);
         _mapPoints = MapPointProjection.FromPointDocuments(
             _filteredPoints,
             _collections.Select(collection => new CollectionMapStyle(collection.Id, IconOrDefault(collection.IconId), collection.Color)),
-            _selectedCollectionFilterIds);
+            _filters.SelectedCollectionIds);
     }
 
     private void RemoveMissingFilterValues()
     {
-        _selectedCollectionFilterIds.RemoveAll(collectionId => _collections.All(collection => collection.Id != collectionId));
-        _selectedTagFilters.RemoveAll(tag => !_tagIndex.Contains(tag, StringComparer.Ordinal));
+        _filters.RemoveMissingValues(
+            _collections.Select(collection => collection.Id),
+            _tagIndex);
     }
 
     private void SaveStadiaApiKey()
@@ -1147,93 +1129,67 @@
 
     private void ToggleCollectionFilter(Guid collectionId, bool isSelected)
     {
-        if (isSelected && !_selectedCollectionFilterIds.Contains(collectionId))
-        {
-            _selectedCollectionFilterIds.Add(collectionId);
-        }
-        else if (!isSelected)
-        {
-            _selectedCollectionFilterIds.Remove(collectionId);
-        }
-
+        _filters.ToggleCollection(collectionId, isSelected);
         ApplyFiltersAndMapProjection();
     }
 
     private void ToggleTagFilter(string tag, bool isSelected)
     {
-        if (isSelected && !_selectedTagFilters.Contains(tag, StringComparer.Ordinal))
-        {
-            _selectedTagFilters.Add(tag);
-        }
-        else if (!isSelected)
-        {
-            _selectedTagFilters.Remove(tag);
-        }
-
+        _filters.ToggleTag(tag, isSelected);
         ApplyFiltersAndMapProjection();
     }
 
     private void SetCollectionFilterMode(FilterMode mode)
     {
-        _collectionFilterMode = mode;
+        _filters.SetCollectionMode(mode);
         ApplyFiltersAndMapProjection();
     }
 
     private void SetTagFilterMode(FilterMode mode)
     {
-        _tagFilterMode = mode;
+        _filters.SetTagMode(mode);
         ApplyFiltersAndMapProjection();
     }
 
     private void ResetCollectionFilter()
     {
-        _selectedCollectionFilterIds.Clear();
+        _filters.ResetCollections();
         ApplyFiltersAndMapProjection();
     }
 
     private void ResetTagFilter()
     {
-        _selectedTagFilters.Clear();
+        _filters.ResetTags();
         ApplyFiltersAndMapProjection();
     }
 
     private void RunSearch()
     {
-        if (!CanRunSearch)
+        if (!_search.Run())
         {
             return;
         }
 
-        _activeSearchQuery = SearchService.NormalizeQuery(_searchInput);
         ApplyFiltersAndMapProjection();
     }
 
     private void ResetSearch()
     {
-        _searchInput = string.Empty;
-        _activeSearchQuery = null;
+        _search.Reset();
         ApplyFiltersAndMapProjection();
     }
 
     private void StartCollectionFilterDrag(Guid collectionId)
     {
-        _draggedCollectionFilterId = collectionId;
+        _filters.StartCollectionDrag(collectionId);
     }
 
     private void DropCollectionFilter(Guid targetCollectionId)
     {
-        if (!_draggedCollectionFilterId.HasValue ||
-            _draggedCollectionFilterId.Value == targetCollectionId)
+        if (_filters.DropCollection(targetCollectionId))
         {
-            _draggedCollectionFilterId = null;
-            return;
+            ApplyFiltersAndMapProjection();
         }
-
-        _selectedCollectionFilterIds.Remove(_draggedCollectionFilterId.Value);
-        var targetIndex = _selectedCollectionFilterIds.IndexOf(targetCollectionId);
-        _selectedCollectionFilterIds.Insert(targetIndex, _draggedCollectionFilterId.Value);
-        _draggedCollectionFilterId = null;
-        ApplyFiltersAndMapProjection();
     }
 
     private FileLibraryPaths? GetCurrentLibraryPaths()
