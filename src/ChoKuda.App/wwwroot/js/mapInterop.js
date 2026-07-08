@@ -70,7 +70,7 @@ export function setPoints(elementId, points) {
 
     for (const point of points ?? []) {
         const marker = L.marker([point.latitude, point.longitude], {
-            icon: createPointIcon(point.pinColor),
+            icon: createPointIcon(point.pinIconId, point.pinColor),
             title: point.title,
         });
 
@@ -142,10 +142,13 @@ function getMapState(elementId) {
     return state;
 }
 
-function createPointIcon(color) {
+function createPointIcon(iconId, color) {
+    const safeIconId = (iconId || 'geo-alt-fill').replace(/[^a-z0-9-]/g, '');
+    const safeColor = color || '#2f75b5';
+
     return L.divIcon({
         className: 'chokuda-map-pin',
-        html: `<span style="--pin-color: ${color || '#808080'}"></span>`,
+        html: `<span style="--pin-color: ${safeColor}"><i class="bi bi-${safeIconId}"></i></span>`,
         iconSize: [28, 36],
         iconAnchor: [14, 34],
         popupAnchor: [0, -30],

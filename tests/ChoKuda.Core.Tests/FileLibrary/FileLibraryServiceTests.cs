@@ -98,8 +98,12 @@ public sealed class FileLibraryServiceTests
         Assert.Equal(collection.IconId, loadedCollection.IconId);
         Assert.Equal(collection.Color, loadedCollection.Color);
         Assert.Equal(collection.DescriptionText, loadedCollection.DescriptionText);
-        Assert.Equal(collection.CreatedAt, loadedCollection.CreatedAt);
-        Assert.Equal(collection.UpdatedAt, loadedCollection.UpdatedAt);
+
+        var json = File.ReadAllText(paths.GetCollectionFilePath(collection.Id));
+        Assert.Contains("\"icon_id\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"description\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("iconId", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("descriptionText", json, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -200,8 +204,6 @@ public sealed class FileLibraryServiceTests
         Assert.Equal(string.Empty, collection.IconId);
         Assert.Equal(string.Empty, collection.Color);
         Assert.Equal(string.Empty, collection.DescriptionText);
-        Assert.Equal(default, collection.CreatedAt);
-        Assert.Equal(default, collection.UpdatedAt);
 
         Assert.Null(settings.LibraryPath);
         Assert.Null(settings.StadiaApiKey);
@@ -235,8 +237,6 @@ public sealed class FileLibraryServiceTests
             IconId = "circle",
             Color = "#ff0000",
             DescriptionText = "Arizona ideas.",
-            CreatedAt = DateTimeOffset.Parse("2026-07-07T09:00:00-04:00"),
-            UpdatedAt = DateTimeOffset.Parse("2026-07-07T09:30:00-04:00"),
         };
     }
 }

@@ -7,9 +7,8 @@ public sealed class PointDefaultsTests
     [Fact]
     public void DefaultsMatchMvpRules()
     {
-        Assert.Equal("Новая точка", PointDefaults.DefaultTitle);
-        Assert.Equal("default-pin", PointDefaults.DefaultPinIconId);
-        Assert.Equal("#808080", PointDefaults.DefaultPinColor);
+        Assert.Equal("New point", PointDefaults.DefaultTitle);
+        Assert.Equal("geo-alt-fill", PointDefaults.DefaultPinIconId);
+        Assert.Equal("#2f75b5", PointDefaults.DefaultPinColor);
     }
 }
-

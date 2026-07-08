@@ -13,6 +13,7 @@ Implemented:
 - Milestone 3: Domain Rules.
 - Milestone 4: Map Integration.
 - Milestone 5: Point CRUD.
+- Milestone 6: Collections And Tags.
 - WPF + BlazorWebView shell.
 - Left panel, Leaflet map, right panel preview, bottom status bar.
 - Testable shell state in `ChoKuda.Core`.
@@ -20,20 +21,20 @@ Implemented:
 - Domain rules for point validation, tag normalization, primary collection behavior, default pin, and attachment file naming.
 - Leaflet + Stadia raster map with marker clustering, temporary point selection, and Stadia API key setup.
 - Point creation, viewing, editing, deletion, unsaved-change confirmation, and point JSON persistence.
-- Unit tests for shell state, file library, domain rules, map point projection, and point CRUD service.
+- Collection CRUD, Bootstrap Icons collection styles, point collection membership, tag index, and collection/tag filters.
+- Unit tests for shell state, file library, domain rules, map point projection, point CRUD service, collection service, and filtering rules.
 
 Not implemented yet:
 
-- Collections and tags management UI.
 - Photos/files import.
-- Search and filters.
+- Search.
 
 ## Stack
 
 - .NET SDK 10.0.300
 - WPF + BlazorWebView/WebView2
 - Blazor + CSS
-- Bootstrap Icons planned, without Bootstrap CSS/JS
+- Bootstrap Icons for collection/pin icons, without Bootstrap UI CSS/JS
 - `System.Text.Json`
 - Leaflet + Stadia raster tiles
 - Leaflet.markercluster

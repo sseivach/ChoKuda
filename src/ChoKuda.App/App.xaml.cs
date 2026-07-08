@@ -1,5 +1,6 @@
 using ChoKuda.App.Services;
 using ChoKuda.Core;
+using ChoKuda.Core.Collections;
 using ChoKuda.Core.FileLibrary;
 using ChoKuda.Core.Points;
 using Microsoft.AspNetCore.Components.WebView.Wpf;
@@ -22,6 +23,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton(new AppSettingsService(environmentPaths.AppSettingsFilePath));
         services.AddSingleton<FileLibraryService>();
         services.AddSingleton<PointService>();
+        services.AddSingleton<CollectionService>();
         services.AddSingleton<ILibraryFolderPicker, WpfLibraryFolderPicker>();
         services.AddSingleton<IApplicationShutdown, WpfApplicationShutdown>();
 
