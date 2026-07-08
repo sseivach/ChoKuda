@@ -4,6 +4,8 @@ ChoKuda is a Windows desktop app for a personal bank of travel places on a map.
 
 The project is intentionally planned before implementation. Product decisions, UX rules, file model, stack, roadmap, quality gate, and milestone status live in [docs/chokuda-planning.md](docs/chokuda-planning.md).
 
+Manual acceptance is tracked in [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md). Accepted MVP constraints are tracked in [docs/known-limitations.md](docs/known-limitations.md).
+
 ## Current Status
 
 Implemented:
@@ -16,6 +18,7 @@ Implemented:
 - Milestone 6: Collections And Tags.
 - Milestone 7: Search.
 - Milestone 8: Photos And Files.
+- Milestone 9: Polish And Acceptance.
 - WPF + BlazorWebView shell.
 - Left panel, Leaflet map, right panel preview, bottom status bar.
 - Testable shell state in `ChoKuda.Core`.
@@ -27,10 +30,11 @@ Implemented:
 - Search by title, address, description, and tags with left-panel results and map centering.
 - Photo/file attachment import, classification, preview, system opening, and deletion.
 - Unit tests for shell state, file library, domain rules, map point projection, point CRUD service, collection service, filtering rules, search service, and attachment services.
+- Final automatic acceptance checks: build, tests, coverage, and launch smoke.
 
 Not implemented yet:
 
-- Milestone 9 final polish and acceptance.
+- Full manual UI acceptance pass on a real Windows desktop session.
 
 ## Stack
 
@@ -48,6 +52,8 @@ Not implemented yet:
 ChoKuda/
   docs/
     chokuda-planning.md
+    MANUAL_TESTING.md
+    known-limitations.md
   src/
     ChoKuda.App/
     ChoKuda.Core/

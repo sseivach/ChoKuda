@@ -880,7 +880,14 @@
             if (!attachmentSaveResult.IsSuccess || attachmentSaveResult.Point is null)
             {
                 ApplySaveErrors(attachmentSaveResult.Errors);
-                savedPoint = importResult.Point;
+                _attachmentErrors = _attachmentErrors
+                    .Concat(["Imported files were copied, but point JSON could not be updated. Try saving again."])
+                    .ToArray();
+                _pointForm = ClonePoint(importResult.Point);
+                _savedPointSnapshot = ClonePoint(savedPoint);
+                LoadLibraryData();
+                await InvokeAsync(StateHasChanged);
+                return;
             }
             else
             {
