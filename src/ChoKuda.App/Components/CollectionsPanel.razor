@@ -11,10 +11,7 @@
                 Name
                 <input @bind="form.Name" />
             </label>
-            @if (!string.IsNullOrWhiteSpace(Editor.NameError))
-            {
-                <p class="field-error">@Editor.NameError</p>
-            }
+            <UiFieldError Message="@Editor.NameError" />
 
             <label>
                 Icon
@@ -38,30 +35,22 @@
                     <code>@form.Color</code>
                 </span>
             </label>
-            @if (!string.IsNullOrWhiteSpace(Editor.ColorError))
-            {
-                <p class="field-error">@Editor.ColorError</p>
-            }
+            <UiFieldError Message="@Editor.ColorError" />
 
             <label>
                 Description
                 <textarea class="compact-textarea" @bind="form.DescriptionText"></textarea>
             </label>
 
-            @if (!string.IsNullOrWhiteSpace(Editor.GeneralError))
-            {
-                <p class="field-error">@Editor.GeneralError</p>
-            }
+            <UiErrorPanel Title="Collection could not be saved"
+                          Description="ChoKuda kept the collection form open so you can fix the problem and try again."
+                          Messages="GeneralErrors"
+                          Action="Check the collection details, then click Save again." />
 
-            @if (Editor.DeleteErrors.Count > 0)
-            {
-                <div class="error-box">
-                    @foreach (var error in Editor.DeleteErrors)
-                    {
-                        <p>@error</p>
-                    }
-                </div>
-            }
+            <UiErrorPanel Title="Collection could not be deleted"
+                          Description="The collection was not removed."
+                          Messages="Editor.DeleteErrors"
+                          Action="Close programs using ChoKuda files, repair broken JSON if mentioned, then try deleting again." />
 
             <div class="panel-actions inline-actions">
                 <button @onclick="OnSaveCollection">Save</button>
@@ -168,6 +157,11 @@
 
     private IEnumerable<CollectionDocument> OrderedCollections =>
         Collections.OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<string> GeneralErrors =>
+        string.IsNullOrWhiteSpace(Editor.GeneralError)
+            ? Array.Empty<string>()
+            : [Editor.GeneralError];
 
     private async Task ToggleCollectionFilter(Guid collectionId, bool isSelected)
     {

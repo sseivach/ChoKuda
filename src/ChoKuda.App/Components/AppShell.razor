@@ -9,8 +9,10 @@
 @inject AttachmentFileClassifier AttachmentFileClassifier
 @inject AttachmentImportService AttachmentImportService
 @inject AttachmentDeleteService AttachmentDeleteService
+@inject AttachmentDropService AttachmentDropService
 @inject IAttachmentFilePicker AttachmentFilePicker
 @inject IAttachmentOpener AttachmentOpener
+@inject BootstrapIconCatalog BootstrapIconCatalog
 @inject ILibraryFolderPicker LibraryFolderPicker
 @inject IApplicationShutdown ApplicationShutdown
 @inject IJSRuntime JsRuntime
@@ -42,6 +44,7 @@
                   TemporaryMarker="@_pointEditor.SelectedCoordinate"
                   LibrarySetupTitle="@LibrarySetupTitle"
                   LibrarySetupMessage="@LibrarySetupMessage"
+                  LibrarySetupErrors="@_librarySetupErrors"
                   DefaultLibraryPath="@DefaultLibraryPath"
                   OnStadiaApiKeyInputChanged="UpdateStadiaApiKeyInput"
                   OnSaveStadiaApiKey="SaveStadiaApiKey"
@@ -66,21 +69,31 @@
                 OnOpenAttachment="OpenAttachment"
                 OnOpenPhoto="OpenPhotoViewer" />
 
-    @if (!string.IsNullOrWhiteSpace(_attachments.PhotoViewerPath))
+    @if (_libraryLoadErrors.Count > 0)
     {
-        <div class="photo-viewer">
-            <button class="photo-viewer-backdrop" @onclick="ClosePhotoViewer"></button>
-            <div class="photo-viewer-content">
-                <img src="@AttachmentDraftState.ToImageSource(_attachments.PhotoViewerPath)" alt="Photo preview" />
-                <button @onclick="ClosePhotoViewer">Close</button>
-            </div>
+        <div class="global-error-area">
+            <UiErrorPanel Title="Some library JSON files could not be loaded"
+                          Description="ChoKuda skipped the broken files and loaded everything else it could read."
+                          Messages="_libraryLoadErrors"
+                          Action="Repair or remove the listed JSON files, then reopen ChoKuda." />
         </div>
     }
+
+    <PhotoViewer PhotoPath="@_attachments.PhotoViewerPath"
+                 Zoom="@_attachments.PhotoViewerZoom"
+                 OnClose="ClosePhotoViewer"
+                 OnZoomIn="ZoomPhotoViewerIn"
+                 OnZoomOut="ZoomPhotoViewerOut"
+                 OnResetZoom="ResetPhotoViewerZoom" />
 
     <StatusBar VisiblePointCount="@_filteredPoints.Count"
                TotalPointCount="@_allPoints.Count"
                Message="@StatusMessage"
                SelectedCoordinateStatus="@_pointEditor.SelectedCoordinateStatus"
+               OperationStatus="@_operation.Status"
+               OperationMessage="@_operation.Message"
+               CanRetryOperation="@_operation.CanRetry"
+               OnRetryOperation="RetryOperation"
                AddPointDisabled="@IsAddPointDisabled"
                OnAddPoint="OpenNewPointPanel" />
 </main>
@@ -98,9 +111,10 @@
     private readonly PointEditorViewModel _pointEditor = new();
     private readonly AttachmentDraftState _attachments = new();
     private readonly CollectionEditorViewModel _collectionEditor = new();
+    private readonly UiOperationViewModel _operation = new();
     private string _stadiaApiKeyInput = string.Empty;
-    private int _pointLoadErrorCount;
-    private int _collectionLoadErrorCount;
+    private IReadOnlyList<string> _librarySetupErrors = Array.Empty<string>();
+    private IReadOnlyList<string> _libraryLoadErrors = Array.Empty<string>();
 
     private CollectionDocument? _collectionForm =>
         _collectionEditor.Form;
@@ -138,7 +152,7 @@
         $"Search: {(_search.IsActive ? "active" : "none")} | " +
         $"Collections: {_filters.SelectedCollectionIds.Count} {_filters.CollectionMode.ToString().ToUpperInvariant()} | " +
         $"Tags: {_filters.SelectedTags.Count} {_filters.TagMode.ToString().ToUpperInvariant()} | " +
-        $"JSON errors: {_pointLoadErrorCount + _collectionLoadErrorCount}";
+        $"JSON errors: {_libraryLoadErrors.Count}";
 
     private string ShellClass =>
         ShellState.IsLeftPanelCollapsed
@@ -165,15 +179,18 @@
             _pointForm,
             GetCurrentLibraryPaths()?.FilesPath);
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         ShellState.Changed += HandleStateChanged;
-        LoadLibraryState();
+        AttachmentDropService.FilesDropped += HandleAttachmentFilesDropped;
+        _collectionEditor.SetIconIds(BootstrapIconCatalog.LoadIconIds());
+        await LoadLibraryState();
     }
 
     public void Dispose()
     {
         ShellState.Changed -= HandleStateChanged;
+        AttachmentDropService.FilesDropped -= HandleAttachmentFilesDropped;
     }
 
     private void HandleStateChanged()
@@ -181,7 +198,7 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
-    private void LoadLibraryState()
+    private async Task LoadLibraryState()
     {
         _appSettings = AppSettingsService.Load();
         _stadiaApiKeyInput = _appSettings.StadiaApiKey ?? string.Empty;
@@ -192,6 +209,9 @@
             LibraryPath = null;
             LibrarySetupTitle = "Choose ChoKuda library";
             LibrarySetupMessage = "Create a new library in the default location or choose an existing library folder.";
+            _librarySetupErrors = Array.Empty<string>();
+            _libraryLoadErrors = Array.Empty<string>();
+            _operation.SetIdle("Choose a library to start.");
             return;
         }
 
@@ -201,62 +221,113 @@
             LibraryPath = _appSettings.LibraryPath;
             LibrarySetupTitle = "Library not found";
             LibrarySetupMessage = "The saved ChoKuda library folder is missing or unavailable.";
+            _librarySetupErrors =
+            [
+                $"Saved library folder was not found: {_appSettings.LibraryPath}",
+            ];
+            _libraryLoadErrors = Array.Empty<string>();
+            _operation.SetError("Saved library folder is missing.", UiRetryAction.PrepareLibrary);
             return;
         }
 
-        FileLibraryService.EnsureLibrary(_appSettings.LibraryPath);
-        IsLibraryReady = true;
-        LibraryPath = _appSettings.LibraryPath;
-        LoadLibraryData();
+        await UseLibrary(_appSettings.LibraryPath, showLoading: false);
     }
 
-    private void CreateDefaultLibrary()
+    private async Task CreateDefaultLibrary()
     {
-        UseLibrary(DefaultLibraryPath);
+        await UseLibrary(DefaultLibraryPath);
     }
 
-    private void ChooseLibrary()
+    private async Task ChooseLibrary()
     {
         var selectedPath = LibraryFolderPicker.PickFolder(LibraryPath ?? DefaultLibraryPath);
 
         if (!string.IsNullOrWhiteSpace(selectedPath))
         {
-            UseLibrary(selectedPath);
+            await UseLibrary(selectedPath);
         }
     }
 
-    private void UseLibrary(string libraryPath)
+    private async Task UseLibrary(string libraryPath, bool showLoading = true)
     {
-        FileLibraryService.EnsureLibrary(libraryPath);
-        _appSettings.LibraryPath = libraryPath;
-        AppSettingsService.Save(_appSettings);
-        IsLibraryReady = true;
-        LibraryPath = libraryPath;
-        LoadLibraryData();
+        if (showLoading)
+        {
+            _operation.SetLoading("Opening library...");
+            await InvokeAsync(StateHasChanged);
+        }
+
+        try
+        {
+            FileLibraryService.EnsureLibrary(libraryPath);
+            _appSettings.LibraryPath = libraryPath;
+            AppSettingsService.Save(_appSettings);
+            IsLibraryReady = true;
+            LibraryPath = libraryPath;
+            LibrarySetupTitle = "Choose ChoKuda library";
+            LibrarySetupMessage = "Create a new library in the default location or choose an existing library folder.";
+            _librarySetupErrors = Array.Empty<string>();
+            LoadLibraryData();
+            if (_libraryLoadErrors.Count == 0)
+            {
+                _operation.SetSuccess("Library is ready.");
+            }
+        }
+        catch (Exception exception) when (IsLibrarySetupException(exception))
+        {
+            IsLibraryReady = false;
+            LibraryPath = libraryPath;
+            LibrarySetupTitle = "Library could not be opened";
+            LibrarySetupMessage = "ChoKuda could not create or open the selected library folder.";
+            _librarySetupErrors =
+            [
+                $"Library folder could not be prepared: {libraryPath}. Reason: {exception.Message}",
+            ];
+            _libraryLoadErrors = Array.Empty<string>();
+            _operation.SetError("Library folder could not be opened.", UiRetryAction.PrepareLibrary);
+        }
     }
 
-    private void LoadLibraryData()
+    private bool LoadLibraryData()
     {
         if (string.IsNullOrWhiteSpace(LibraryPath))
         {
             _allPoints = Array.Empty<PointDocument>();
             _collections = Array.Empty<CollectionDocument>();
-            _pointLoadErrorCount = 0;
-            _collectionLoadErrorCount = 0;
+            _libraryLoadErrors = Array.Empty<string>();
             ApplyFiltersAndMapProjection();
-            return;
+            return true;
         }
 
-        var paths = new FileLibraryPaths(LibraryPath);
-        var pointsResult = FileLibraryService.LoadPoints(paths);
-        var collectionsResult = FileLibraryService.LoadCollections(paths);
-        _allPoints = pointsResult.Items;
-        _collections = collectionsResult.Items;
-        _tagIndex = TagIndex.Build(_allPoints);
-        _pointLoadErrorCount = pointsResult.Errors.Count;
-        _collectionLoadErrorCount = collectionsResult.Errors.Count;
-        RemoveMissingFilterValues();
-        ApplyFiltersAndMapProjection();
+        try
+        {
+            var paths = new FileLibraryPaths(LibraryPath);
+            var pointsResult = FileLibraryService.LoadPoints(paths);
+            var collectionsResult = FileLibraryService.LoadCollections(paths);
+            _allPoints = pointsResult.Items;
+            _collections = collectionsResult.Items;
+            _tagIndex = TagIndex.Build(_allPoints);
+            _libraryLoadErrors = FormatLoadErrors("Point", pointsResult.Errors)
+                .Concat(FormatLoadErrors("Collection", collectionsResult.Errors))
+                .ToArray();
+            RemoveMissingFilterValues();
+            ApplyFiltersAndMapProjection();
+
+            if (_libraryLoadErrors.Count > 0)
+            {
+                _operation.SetError("Library loaded with JSON errors.", UiRetryAction.ReloadLibrary);
+            }
+
+            return true;
+        }
+        catch (Exception exception) when (IsLibrarySetupException(exception))
+        {
+            _libraryLoadErrors =
+            [
+                $"Library data could not be loaded from {LibraryPath}. Reason: {exception.Message}",
+            ];
+            _operation.SetError("Library data could not be loaded.", UiRetryAction.ReloadLibrary);
+            return false;
+        }
     }
 
     private void ApplyFiltersAndMapProjection()
@@ -279,11 +350,21 @@
 
     private void SaveStadiaApiKey()
     {
-        _appSettings.StadiaApiKey = string.IsNullOrWhiteSpace(_stadiaApiKeyInput)
-            ? null
-            : _stadiaApiKeyInput.Trim();
+        _operation.SetLoading("Saving map settings...");
 
-        AppSettingsService.Save(_appSettings);
+        try
+        {
+            _appSettings.StadiaApiKey = string.IsNullOrWhiteSpace(_stadiaApiKeyInput)
+                ? null
+                : _stadiaApiKeyInput.Trim();
+
+            AppSettingsService.Save(_appSettings);
+            _operation.SetSuccess("Map settings saved.");
+        }
+        catch (Exception exception) when (IsLibrarySetupException(exception))
+        {
+            _operation.SetError($"Map settings could not be saved. Reason: {exception.Message}");
+        }
     }
 
     private void UpdateStadiaApiKeyInput(string value)
@@ -374,6 +455,7 @@
             return;
         }
 
+        await StartOperation("Saving point...");
         ClearAttachmentErrors();
         var saveResult = _pointEditor.SaveWithAttachments(
             point => _isNewPoint
@@ -391,10 +473,16 @@
                 await InvokeAsync(StateHasChanged);
             }
 
+            _operation.SetError("Point could not be saved.");
             return;
         }
 
         LoadLibraryData();
+        if (_libraryLoadErrors.Count == 0)
+        {
+            _operation.SetSuccess("Point saved.");
+        }
+
         await InvokeAsync(StateHasChanged);
     }
 
@@ -418,15 +506,21 @@
             return;
         }
 
+        await StartOperation("Deleting point...");
         if (!_pointEditor.Delete(
             pointId => PointService.DeletePoint(paths, pointId),
             _attachments))
         {
+            _operation.SetError("Point could not be deleted.");
             return;
         }
 
         ShellState.CloseRightPanel();
         LoadLibraryData();
+        if (_libraryLoadErrors.Count == 0)
+        {
+            _operation.SetSuccess("Point deleted.");
+        }
     }
 
     private async Task ClosePointPanel()
@@ -488,6 +582,7 @@
             return;
         }
 
+        await StartOperation("Saving collection...");
         var savedCollection = _collectionEditor.Save(collection =>
             _isNewCollection
                 ? CollectionService.CreateCollection(paths, collection, _collections)
@@ -495,10 +590,16 @@
 
         if (savedCollection is null)
         {
+            _operation.SetError("Collection could not be saved.");
             return;
         }
 
         LoadLibraryData();
+        if (_libraryLoadErrors.Count == 0)
+        {
+            _operation.SetSuccess("Collection saved.");
+        }
+
         await InvokeAsync(StateHasChanged);
     }
 
@@ -522,12 +623,18 @@
             return;
         }
 
+        await StartOperation("Deleting collection...");
         if (!_collectionEditor.Delete(collectionId => CollectionService.DeleteCollection(paths, collectionId)))
         {
+            _operation.SetError("Collection could not be deleted.");
             return;
         }
 
         LoadLibraryData();
+        if (_libraryLoadErrors.Count == 0)
+        {
+            _operation.SetSuccess("Collection deleted.");
+        }
     }
 
     private async Task CancelCollectionEdit()
@@ -567,6 +674,33 @@
         ApplyFiltersAndMapProjection();
     }
 
+    private async Task RetryOperation()
+    {
+        switch (_operation.RetryAction)
+        {
+            case UiRetryAction.PrepareLibrary:
+                await UseLibrary(LibraryPath ?? _appSettings.LibraryPath ?? DefaultLibraryPath);
+                break;
+
+            case UiRetryAction.ReloadLibrary:
+                await StartOperation("Reloading library...");
+                if (LoadLibraryData() && _libraryLoadErrors.Count == 0)
+                {
+                    _operation.SetSuccess("Library reloaded.");
+                }
+
+                await InvokeAsync(StateHasChanged);
+                break;
+        }
+    }
+
+    private async Task StartOperation(string message)
+    {
+        _operation.SetLoading(message);
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+    }
+
     private FileLibraryPaths? GetCurrentLibraryPaths()
     {
         if (!IsLibraryReady || string.IsNullOrWhiteSpace(LibraryPath))
@@ -579,15 +713,64 @@
 
     private void AddPendingAttachments()
     {
+        StageAttachmentFiles(
+            AttachmentFilePicker.PickFiles(),
+            "Attachment files staged.",
+            noFilesMessage: null);
+    }
+
+    private void HandleAttachmentFilesDropped(object? sender, AttachmentFilesDroppedEventArgs eventArgs)
+    {
+        _ = InvokeAsync(() => StageAttachmentFiles(
+            eventArgs.FilePaths,
+            "Attachment files dropped.",
+            "Drop files onto an open point panel."));
+    }
+
+    private void StageAttachmentFiles(
+        IEnumerable<string> filePaths,
+        string successMessage,
+        string? noFilesMessage)
+    {
         if (_pointForm is null)
         {
+            if (!string.IsNullOrWhiteSpace(noFilesMessage))
+            {
+                _operation.SetError(noFilesMessage);
+            }
+
             return;
         }
 
-        var selectedFiles = AttachmentFilePicker.PickFiles();
+        ClearAttachmentErrors();
+        var existingFilePaths = filePaths
+            .Where(File.Exists)
+            .ToArray();
+
+        if (existingFilePaths.Length == 0)
+        {
+            if (!string.IsNullOrWhiteSpace(noFilesMessage))
+            {
+                _operation.SetError(noFilesMessage);
+            }
+
+            return;
+        }
+
+        var pendingCountBefore = _attachments.PendingAttachments.Count;
         _attachments.AddFiles(
-            selectedFiles,
+            existingFilePaths,
             filePath => AttachmentFileClassifier.Classify(filePath));
+
+        var addedCount = _attachments.PendingAttachments.Count - pendingCountBefore;
+        if (addedCount > 0)
+        {
+            _operation.SetSuccess($"{successMessage} Added: {addedCount}.");
+        }
+        else
+        {
+            _operation.SetIdle("Attachment files were already staged.");
+        }
     }
 
     private async Task RemoveAttachment(AttachmentDisplayItem item)
@@ -602,6 +785,7 @@
         if (item.IsPending)
         {
             _attachments.RemovePending(item);
+            _operation.SetSuccess("Pending attachment removed.");
             return;
         }
 
@@ -623,15 +807,28 @@
             _attachments,
             (point, kind, storedName) => AttachmentDeleteService.DeleteSavedAttachment(paths, point, kind, storedName)))
         {
+            _operation.SetError("Attachment could not be deleted.");
             return;
         }
 
         LoadLibraryData();
+        if (_libraryLoadErrors.Count == 0)
+        {
+            _operation.SetSuccess("Attachment deleted.");
+        }
     }
 
     private void OpenAttachment(AttachmentDisplayItem item)
     {
         _attachments.OpenFile(item, AttachmentOpener.Open);
+        if (_attachments.Errors.Count > 0)
+        {
+            _operation.SetError("Attachment could not be opened.");
+        }
+        else
+        {
+            _operation.SetSuccess("Attachment opened.");
+        }
     }
 
     private void OpenPhotoViewer(string photoPath)
@@ -642,6 +839,21 @@
     private void ClosePhotoViewer()
     {
         _attachments.ClosePhotoViewer();
+    }
+
+    private void ZoomPhotoViewerIn()
+    {
+        _attachments.ZoomPhotoViewerIn();
+    }
+
+    private void ZoomPhotoViewerOut()
+    {
+        _attachments.ZoomPhotoViewerOut();
+    }
+
+    private void ResetPhotoViewerZoom()
+    {
+        _attachments.ResetPhotoViewerZoom();
     }
 
     private void ClearPointErrors()
@@ -662,5 +874,19 @@
         string.IsNullOrWhiteSpace(iconId)
             ? PointDefaults.DefaultPinIconId
             : iconId;
+
+    private static IEnumerable<string> FormatLoadErrors(
+        string documentType,
+        IEnumerable<FileLibraryLoadError> errors)
+    {
+        return errors.Select(error =>
+            $"{documentType} JSON could not be loaded: {Path.GetFileName(error.FilePath)}. Reason: {error.Message}");
+    }
+
+    private static bool IsLibrarySetupException(Exception exception) =>
+        exception is IOException
+            or UnauthorizedAccessException
+            or ArgumentException
+            or NotSupportedException;
 
 }

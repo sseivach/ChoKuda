@@ -26,10 +26,13 @@ Implemented:
 - Domain rules for point validation, tag normalization, primary collection behavior, default pin, and attachment file naming.
 - Leaflet + Stadia raster map with marker clustering, temporary point selection, and Stadia API key setup.
 - Point creation, viewing, editing, deletion, unsaved-change confirmation, and point JSON persistence.
-- Collection CRUD, Bootstrap Icons collection styles, point collection membership, tag index, and collection/tag filters.
+- Collection CRUD, Bootstrap Icons collection styles with the local full `1.13.1` catalog, point collection membership, tag index, and collection/tag filters.
 - Search by title, address, description, and tags with left-panel results and map centering.
-- Photo/file attachment import, classification, preview, system opening, and deletion.
+- Photo/file attachment import through picker or drag-and-drop, classification, preview with basic zoom/pan, system opening, and deletion.
+- Local library data lives in one user-selected `ChoKudaLibrary` folder.
+- Manual backup is done by closing ChoKuda and copying the whole `ChoKudaLibrary` folder.
 - Unit tests for shell state, file library, domain rules, map point projection, point CRUD service, collection service, filtering rules, search service, and attachment services.
+- App-level VM tests for search, filters, editors, attachments, collections, and UI operation state.
 - Final automatic acceptance checks: build, tests, coverage, and launch smoke.
 
 Not implemented yet:
@@ -41,7 +44,7 @@ Not implemented yet:
 - .NET SDK 10.0.300
 - WPF + BlazorWebView/WebView2
 - Blazor + CSS
-- Bootstrap Icons for collection/pin icons, without Bootstrap UI CSS/JS
+- Bootstrap Icons `1.13.1` for collection/pin icons, without Bootstrap UI CSS/JS
 - `System.Text.Json`
 - Leaflet + Stadia raster tiles
 - Leaflet.markercluster
@@ -58,8 +61,35 @@ ChoKuda/
     ChoKuda.App/
     ChoKuda.Core/
   tests/
+    ChoKuda.App.Tests/
     ChoKuda.Core.Tests/
 ```
+
+## Data And Backup
+
+ChoKuda keeps the valuable user library in one selected folder, usually:
+
+```text
+%USERPROFILE%\Documents\ChoKudaLibrary
+```
+
+That folder contains:
+
+```text
+settings.json
+points/
+collections/
+photos/
+files/
+```
+
+Application settings such as the selected library path and Stadia API key are stored separately in:
+
+```text
+%APPDATA%\ChoKuda\appsettings.json
+```
+
+Backup is intentionally manual in MVP: close ChoKuda and copy the whole `ChoKudaLibrary` folder. To restore, replace the folder with the copy or choose the copied folder with `Choose folder`. There is no automatic backup service or migration runner yet.
 
 ## Commands
 

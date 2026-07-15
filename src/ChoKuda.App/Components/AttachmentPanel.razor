@@ -51,15 +51,10 @@
     }
 </section>
 
-@if (Errors.Count > 0)
-{
-    <div class="error-box">
-        @foreach (var error in Errors)
-        {
-            <p>@error</p>
-        }
-    </div>
-}
+<UiErrorPanel Title="Attachment action failed"
+              Description="ChoKuda could not finish the attachment action."
+              Messages="Errors"
+              Action="Check that the file exists and is not locked by another program, then try again." />
 
 @code {
     [Parameter]

@@ -1,0 +1,94 @@
+@namespace ChoKuda.App.Components
+@using ChoKuda.App.ViewModels
+
+@if (!string.IsNullOrWhiteSpace(PhotoPath))
+{
+    <div class="photo-viewer">
+        <button type="button"
+                class="photo-viewer-backdrop"
+                title="Close"
+                aria-label="Close photo viewer"
+                @onclick="OnClose">
+        </button>
+        <section class="photo-viewer-content"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-label="Photo preview">
+            <div class="photo-viewer-toolbar">
+                <button type="button"
+                        class="photo-viewer-icon-button"
+                        title="Zoom out"
+                        aria-label="Zoom out"
+                        disabled="@IsZoomOutDisabled"
+                        @onclick="OnZoomOut">
+                    <i class="bi bi-zoom-out"></i>
+                </button>
+                <span class="photo-viewer-zoom">@ZoomPercent%</span>
+                <button type="button"
+                        class="photo-viewer-icon-button"
+                        title="Zoom in"
+                        aria-label="Zoom in"
+                        disabled="@IsZoomInDisabled"
+                        @onclick="OnZoomIn">
+                    <i class="bi bi-zoom-in"></i>
+                </button>
+                <button type="button"
+                        class="photo-viewer-icon-button"
+                        title="Reset zoom"
+                        aria-label="Reset zoom"
+                        disabled="@IsResetDisabled"
+                        @onclick="OnResetZoom">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+                <button type="button"
+                        class="photo-viewer-icon-button"
+                        title="Close"
+                        aria-label="Close photo viewer"
+                        @onclick="OnClose">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="photo-viewer-scroll">
+                <div class="photo-viewer-frame" style="@FrameStyle">
+                    <img src="@AttachmentDraftState.ToImageSource(PhotoPath)"
+                         alt="Photo preview" />
+                </div>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? PhotoPath { get; set; }
+
+    [Parameter]
+    public double Zoom { get; set; } = 1;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback OnZoomIn { get; set; }
+
+    [Parameter]
+    public EventCallback OnZoomOut { get; set; }
+
+    [Parameter]
+    public EventCallback OnResetZoom { get; set; }
+
+    private int ZoomPercent =>
+        (int)Math.Round(Zoom * 100);
+
+    private string FrameStyle =>
+        $"width: {ZoomPercent}%; height: {ZoomPercent}%;";
+
+    private bool IsZoomOutDisabled =>
+        Zoom <= AttachmentDraftState.MinimumPhotoViewerZoom;
+
+    private bool IsZoomInDisabled =>
+        Zoom >= AttachmentDraftState.MaximumPhotoViewerZoom;
+
+    private bool IsResetDisabled =>
+        Math.Abs(Zoom - 1) < 0.001;
+}

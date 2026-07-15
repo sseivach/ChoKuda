@@ -1,0 +1,39 @@
+@if (VisibleMessages.Count > 0)
+{
+    <div class="ui-error-panel" role="alert">
+        <strong class="ui-error-title">@Title</strong>
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p class="ui-error-description">@Description</p>
+        }
+        <ul class="ui-error-list">
+            @foreach (var message in VisibleMessages)
+            {
+                <li>@message</li>
+            }
+        </ul>
+        @if (!string.IsNullOrWhiteSpace(Action))
+        {
+            <p class="ui-error-action">@Action</p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = "Something went wrong";
+
+    [Parameter]
+    public string? Description { get; set; }
+
+    [Parameter]
+    public IEnumerable<string> Messages { get; set; } = Array.Empty<string>();
+
+    [Parameter]
+    public string? Action { get; set; }
+
+    private IReadOnlyList<string> VisibleMessages =>
+        Messages
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .ToArray();
+}

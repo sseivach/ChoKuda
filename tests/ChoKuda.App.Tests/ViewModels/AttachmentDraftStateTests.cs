@@ -103,12 +103,50 @@ public sealed class AttachmentDraftStateTests
         var attachments = new AttachmentDraftState();
         attachments.SetErrors(["Could not open file."]);
         attachments.OpenPhotoViewer(Path.Combine("c:", "temp", "photo.jpg"));
+        attachments.ZoomPhotoViewerIn();
 
         attachments.ClearAll();
 
         Assert.Empty(attachments.Errors);
         Assert.Null(attachments.PhotoViewerPath);
+        Assert.Equal(1, attachments.PhotoViewerZoom);
         Assert.Empty(attachments.PendingAttachments);
+    }
+
+    [Fact]
+    public void PhotoViewerZoomIsClampedAndResetWithViewerState()
+    {
+        var attachments = new AttachmentDraftState();
+        attachments.OpenPhotoViewer(Path.Combine("c:", "temp", "photo.jpg"));
+
+        for (var index = 0; index < 20; index++)
+        {
+            attachments.ZoomPhotoViewerIn();
+        }
+
+        Assert.Equal(AttachmentDraftState.MaximumPhotoViewerZoom, attachments.PhotoViewerZoom);
+
+        for (var index = 0; index < 20; index++)
+        {
+            attachments.ZoomPhotoViewerOut();
+        }
+
+        Assert.Equal(AttachmentDraftState.MinimumPhotoViewerZoom, attachments.PhotoViewerZoom);
+
+        attachments.ResetPhotoViewerZoom();
+
+        Assert.Equal(1, attachments.PhotoViewerZoom);
+
+        attachments.ZoomPhotoViewerIn();
+        attachments.OpenPhotoViewer(Path.Combine("c:", "temp", "other.jpg"));
+
+        Assert.Equal(1, attachments.PhotoViewerZoom);
+
+        attachments.ZoomPhotoViewerIn();
+        attachments.ClosePhotoViewer();
+
+        Assert.Null(attachments.PhotoViewerPath);
+        Assert.Equal(1, attachments.PhotoViewerZoom);
     }
 
     [Fact]

@@ -1,29 +1,12 @@
 using ChoKuda.Core.Collections;
 using ChoKuda.Core.FileLibrary;
+using ChoKuda.App.Services;
 
 namespace ChoKuda.App.ViewModels;
 
 public sealed class CollectionEditorViewModel
 {
-    private static readonly IReadOnlyList<string> BootstrapIconIds =
-    [
-        "geo-alt-fill", "pin-map-fill", "map-fill", "compass-fill", "camera-fill", "image-fill",
-        "sun-fill", "moon-stars-fill", "cloud-sun-fill", "water", "tree-fill", "flower1",
-        "fire", "umbrella-fill", "snow", "star-fill", "heart-fill", "flag-fill", "bookmark-fill",
-        "signpost-fill", "binoculars-fill", "backpack-fill", "car-front-fill", "taxi-front-fill",
-        "bus-front-fill", "train-front-fill", "airplane-fill", "bicycle", "scooter", "fuel-pump-fill",
-        "house-door-fill", "building-fill", "buildings-fill", "hospital-fill", "shop", "basket-fill",
-        "cart-fill", "bag-fill", "cup-hot-fill", "cup-straw", "egg-fried", "cake2-fill",
-        "fork-knife", "geo-fill", "crosshair", "bullseye", "diamond-fill", "circle-fill",
-        "square-fill", "triangle-fill", "hexagon-fill", "lightning-fill", "gem", "key-fill",
-        "shield-fill", "calendar-event-fill", "clock-fill", "wifi", "telephone-fill", "link-45deg",
-        "file-earmark-pdf-fill", "journal-text", "book-fill", "palette-fill", "tools", "gear-fill",
-        "person-walking", "cash-coin", "gift-fill", "trophy-fill", "rocket-takeoff-fill", "magic",
-        "brightness-high-fill", "thermometer-sun", "droplet-fill", "wind", "layers-fill",
-        "collection-fill", "tags-fill", "filter-circle-fill", "funnel-fill", "search", "grip-vertical",
-        "trash-fill", "pencil-fill", "save-fill",
-    ];
-
+    private IReadOnlyList<string> _bootstrapIconIds = BootstrapIconCatalog.PreferredIconIds;
     private CollectionDocument? _savedSnapshot;
 
     public CollectionDocument? Form { get; private set; }
@@ -45,7 +28,7 @@ public sealed class CollectionEditorViewModel
         (IsNew || !CollectionDocumentsEqual(Form, _savedSnapshot));
 
     public IEnumerable<string> FilteredIconIds =>
-        BootstrapIconIds
+        _bootstrapIconIds
             .Where(iconId => string.IsNullOrWhiteSpace(IconSearch) || iconId.Contains(IconSearch.Trim(), StringComparison.OrdinalIgnoreCase))
             .Take(48);
 
@@ -54,6 +37,18 @@ public sealed class CollectionEditorViewModel
 
     public bool CanDiscardChanges(bool userConfirmed) =>
         !RequiresDiscardConfirmation || userConfirmed;
+
+    public void SetIconIds(IEnumerable<string> iconIds)
+    {
+        var normalizedIconIds = iconIds
+            .Where(iconId => !string.IsNullOrWhiteSpace(iconId))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        _bootstrapIconIds = normalizedIconIds.Length == 0
+            ? BootstrapIconCatalog.PreferredIconIds
+            : normalizedIconIds;
+    }
 
     public void OpenNew(CollectionDocument draft)
     {

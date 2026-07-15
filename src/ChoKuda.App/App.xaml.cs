@@ -29,8 +29,10 @@ public partial class App : System.Windows.Application
         services.AddSingleton<AttachmentFileClassifier>();
         services.AddSingleton<AttachmentImportService>();
         services.AddSingleton<AttachmentDeleteService>();
+        services.AddSingleton<AttachmentDropService>();
         services.AddSingleton<IAttachmentFilePicker, WpfAttachmentFilePicker>();
         services.AddSingleton<IAttachmentOpener, WindowsAttachmentOpener>();
+        services.AddSingleton<BootstrapIconCatalog>();
         services.AddSingleton<ILibraryFolderPicker, WpfLibraryFolderPicker>();
         services.AddSingleton<IApplicationShutdown, WpfApplicationShutdown>();
 

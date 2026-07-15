@@ -6,6 +6,10 @@ namespace ChoKuda.App.ViewModels;
 
 public sealed class AttachmentDraftState
 {
+    public const double MinimumPhotoViewerZoom = 0.5;
+    public const double MaximumPhotoViewerZoom = 3;
+
+    private const double PhotoViewerZoomStep = 0.25;
     private readonly List<PendingAttachment> _pendingAttachments = [];
 
     public IReadOnlyList<PendingAttachment> PendingAttachments =>
@@ -14,6 +18,8 @@ public sealed class AttachmentDraftState
     public IReadOnlyList<string> Errors { get; private set; } = Array.Empty<string>();
 
     public string? PhotoViewerPath { get; private set; }
+
+    public double PhotoViewerZoom { get; private set; } = 1;
 
     public bool HasPending =>
         _pendingAttachments.Count > 0;
@@ -128,11 +134,35 @@ public sealed class AttachmentDraftState
     public void OpenPhotoViewer(string photoPath)
     {
         PhotoViewerPath = photoPath;
+        ResetPhotoViewerZoom();
     }
 
     public void ClosePhotoViewer()
     {
         PhotoViewerPath = null;
+        ResetPhotoViewerZoom();
+    }
+
+    public void ZoomPhotoViewerIn()
+    {
+        SetPhotoViewerZoom(PhotoViewerZoom + PhotoViewerZoomStep);
+    }
+
+    public void ZoomPhotoViewerOut()
+    {
+        SetPhotoViewerZoom(PhotoViewerZoom - PhotoViewerZoomStep);
+    }
+
+    public void ResetPhotoViewerZoom()
+    {
+        SetPhotoViewerZoom(1);
+    }
+
+    private void SetPhotoViewerZoom(double zoom)
+    {
+        PhotoViewerZoom = Math.Round(
+            Math.Clamp(zoom, MinimumPhotoViewerZoom, MaximumPhotoViewerZoom),
+            2);
     }
 
     public static string RestoreOriginalFileName(string storedName)

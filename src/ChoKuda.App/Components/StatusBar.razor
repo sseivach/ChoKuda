@@ -2,6 +2,11 @@
     <span>Visible: @VisiblePointCount / Total: @TotalPointCount</span>
     <span>@Message</span>
     <div class="status-action">
+        <span class="@OperationStatusClass">@OperationStatus: @OperationMessage</span>
+        @if (CanRetryOperation)
+        {
+            <button @onclick="OnRetryOperation">Retry</button>
+        }
         <span class="muted">@SelectedCoordinateStatus</span>
         <button disabled="@AddPointDisabled" @onclick="OnAddPoint">Add point</button>
     </div>
@@ -21,8 +26,23 @@
     public string SelectedCoordinateStatus { get; set; } = string.Empty;
 
     [Parameter]
+    public UiOperationStatus OperationStatus { get; set; } = UiOperationStatus.Idle;
+
+    [Parameter]
+    public string OperationMessage { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool CanRetryOperation { get; set; }
+
+    [Parameter]
     public bool AddPointDisabled { get; set; }
 
     [Parameter]
     public EventCallback OnAddPoint { get; set; }
+
+    [Parameter]
+    public EventCallback OnRetryOperation { get; set; }
+
+    private string OperationStatusClass =>
+        $"operation-status {OperationStatus.ToString().ToLowerInvariant()}";
 }

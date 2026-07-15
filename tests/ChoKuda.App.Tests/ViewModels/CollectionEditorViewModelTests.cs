@@ -62,6 +62,18 @@ public sealed class CollectionEditorViewModelTests
     }
 
     [Fact]
+    public void SetIconIdsUsesProvidedCatalogForSearch()
+    {
+        var editor = new CollectionEditorViewModel();
+        editor.SetIconIds(["alpha", "waterfall", "zoom-in"]);
+        editor.IconSearch = "zoom";
+
+        var icons = editor.FilteredIconIds.ToArray();
+
+        Assert.Equal(["zoom-in"], icons);
+    }
+
+    [Fact]
     public void IconChoiceClassMarksSelectedIcon()
     {
         var editor = new CollectionEditorViewModel();

@@ -14,10 +14,7 @@
                 Title
                 <input @bind="point.Title" />
             </label>
-            @if (!string.IsNullOrWhiteSpace(Editor.TitleError))
-            {
-                <p class="field-error">@Editor.TitleError</p>
-            }
+            <UiFieldError Message="@Editor.TitleError" />
         </section>
 
         <section class="panel-section">
@@ -51,10 +48,7 @@
                 Tags
                 <input @bind="point.TagsText" placeholder="#hardmode #safe #rentcar" />
             </label>
-            @if (!string.IsNullOrWhiteSpace(Editor.TagsError))
-            {
-                <p class="field-error">@Editor.TagsError</p>
-            }
+            <UiFieldError Message="@Editor.TagsError" />
         </section>
 
         <section class="panel-section">
@@ -101,20 +95,15 @@
                          OnOpenFile="OnOpenAttachment"
                          OnOpenPhoto="OnOpenPhoto" />
 
-        @if (!string.IsNullOrWhiteSpace(Editor.GeneralError))
-        {
-            <p class="field-error">@Editor.GeneralError</p>
-        }
+        <UiErrorPanel Title="Point could not be saved"
+                      Description="ChoKuda kept the point open so you can fix the problem and try again."
+                      Messages="GeneralErrors"
+                      Action="Check the point details, then click Save again." />
 
-        @if (Editor.DeleteErrors.Count > 0)
-        {
-            <div class="error-box">
-                @foreach (var error in Editor.DeleteErrors)
-                {
-                    <p>@error</p>
-                }
-            </div>
-        }
+        <UiErrorPanel Title="Point could not be deleted"
+                      Description="The point was not removed."
+                      Messages="Editor.DeleteErrors"
+                      Action="Close programs using ChoKuda files, repair broken JSON if mentioned, then try deleting again." />
 
         <div class="panel-actions">
             <button @onclick="OnSave">Save</button>
@@ -179,6 +168,11 @@
         Collections
             .Where(collection => Editor.Form?.CollectionIds.Contains(collection.Id) == true)
             .OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<string> GeneralErrors =>
+        string.IsNullOrWhiteSpace(Editor.GeneralError)
+            ? Array.Empty<string>()
+            : [Editor.GeneralError];
 
     private void TogglePointCollection(Guid collectionId, bool isSelected)
     {

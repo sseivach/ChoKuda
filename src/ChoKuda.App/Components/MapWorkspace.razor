@@ -24,6 +24,10 @@
             <h2>@LibrarySetupTitle</h2>
             <p>@LibrarySetupMessage</p>
             <code>@DefaultLibraryPath</code>
+            <UiErrorPanel Title="Library folder could not be opened"
+                          Description="ChoKuda cannot use this folder until the problem is fixed."
+                          Messages="LibrarySetupErrors"
+                          Action="Choose a different folder, restore the missing folder, or check Windows permissions." />
             <div class="setup-actions">
                 <button @onclick="OnCreateDefaultLibrary">Create default library</button>
                 <button @onclick="OnChooseLibrary">Choose folder</button>
@@ -62,6 +66,9 @@
 
     [Parameter]
     public string DefaultLibraryPath { get; set; } = string.Empty;
+
+    [Parameter]
+    public IReadOnlyList<string> LibrarySetupErrors { get; set; } = Array.Empty<string>();
 
     [Parameter]
     public EventCallback<string> OnStadiaApiKeyInputChanged { get; set; }

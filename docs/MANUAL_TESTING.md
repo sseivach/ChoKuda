@@ -18,8 +18,17 @@ Use this checklist for the first full manual UI acceptance pass on Windows.
 - Start the app.
 - If no library is configured, verify that setup is shown.
 - Click `Create default library` and verify the folder structure is created.
+- Verify the library folder contains `settings.json`, `points/`, `collections/`, `photos/`, and `files/`.
 - Restart the app and verify the same library is loaded.
 - Repeat with `Choose folder` if testing a custom library path.
+
+## Manual Backup
+
+- Close ChoKuda.
+- Copy the whole `ChoKudaLibrary` folder to another location.
+- Start ChoKuda and choose the copied folder with `Choose folder`.
+- Verify points, collections, photos, and files load from the copied folder.
+- Switch back to the original folder if needed.
 
 ## Map
 
@@ -80,6 +89,8 @@ Use this checklist for the first full manual UI acceptance pass on Windows.
 ## Photos And Files
 
 - Click `Add files`.
+- Drag files from Explorer onto an open point panel.
+- Drag files while no point panel is open and verify a clear status error is shown.
 - Select valid images, PDF, text file, and renamed invalid `.jpg` together.
 - Before `Save`, verify files are not copied into the library.
 - Verify valid images appear under Photos.
@@ -90,6 +101,7 @@ Use this checklist for the first full manual UI acceptance pass on Windows.
 - Verify point JSON stores file names only, not full paths.
 - Verify stored names use `original__guid.ext`.
 - Click a photo and verify the viewer opens.
+- Verify photo viewer zoom in, zoom out, reset, scrollbar panning, and close.
 - Click a file and verify Windows opens it with the system app.
 - Delete a saved attachment and verify confirmation is required.
 - Add a draft attachment and remove it before save; verify no confirmation is shown.

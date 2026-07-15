@@ -1,0 +1,9 @@
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <p class="field-error" role="alert">@Message</p>
+}
+
+@code {
+    [Parameter]
+    public string? Message { get; set; }
+}

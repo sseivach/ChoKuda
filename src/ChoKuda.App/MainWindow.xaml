@@ -11,6 +11,9 @@
         Width="1440"
         MinHeight="720"
         MinWidth="1100"
+        AllowDrop="True"
+        PreviewDragOver="HandlePreviewDragOver"
+        PreviewDrop="HandlePreviewDrop"
         Background="#f4f1ea">
     <Grid>
         <blazor:BlazorWebView HostPage="wwwroot\index.html"
@@ -22,4 +25,3 @@
         </blazor:BlazorWebView>
     </Grid>
 </Window>
-
