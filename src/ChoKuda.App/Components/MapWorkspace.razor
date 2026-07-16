@@ -5,6 +5,7 @@
         {
             <MapView @ref="_mapView"
                      ApiKey="@StadiaApiKey"
+                     MapStyle="@MapStyle"
                      Points="@Points"
                      TemporaryMarker="@TemporaryMarker"
                      OnMapClick="OnMapClick"
@@ -14,7 +15,10 @@
         else
         {
             <SettingsPanel StadiaApiKeyInput="@StadiaApiKeyInput"
+                           MapStyleOptions="@MapStyleOptions"
+                           SelectedMapStyleId="@MapStyle.Id"
                            OnStadiaApiKeyInputChanged="OnStadiaApiKeyInputChanged"
+                           OnMapStyleChanged="OnMapStyleChanged"
                            OnSaveStadiaApiKey="OnSaveStadiaApiKey" />
         }
     }
@@ -29,9 +33,9 @@
                           Messages="LibrarySetupErrors"
                           Action="Choose a different folder, restore the missing folder, or check Windows permissions." />
             <div class="setup-actions">
-                <button @onclick="OnCreateDefaultLibrary">Create default library</button>
-                <button @onclick="OnChooseLibrary">Choose folder</button>
-                <button @onclick="OnExit">Exit</button>
+                <button @onclick="CreateDefaultLibrary">Create default library</button>
+                <button @onclick="ChooseLibrary">Choose folder</button>
+                <button @onclick="Exit">Exit</button>
             </div>
         </div>
     }
@@ -51,6 +55,12 @@
 
     [Parameter]
     public string StadiaApiKeyInput { get; set; } = string.Empty;
+
+    [Parameter]
+    public StadiaMapStyle MapStyle { get; set; } = StadiaMapStyles.Default;
+
+    [Parameter]
+    public IReadOnlyList<StadiaMapStyle> MapStyleOptions { get; set; } = Array.Empty<StadiaMapStyle>();
 
     [Parameter]
     public IReadOnlyList<MapPoint> Points { get; set; } = Array.Empty<MapPoint>();
@@ -74,6 +84,9 @@
     public EventCallback<string> OnStadiaApiKeyInputChanged { get; set; }
 
     [Parameter]
+    public EventCallback<string> OnMapStyleChanged { get; set; }
+
+    [Parameter]
     public EventCallback OnSaveStadiaApiKey { get; set; }
 
     [Parameter]
@@ -93,6 +106,21 @@
 
     [Parameter]
     public EventCallback OnEscape { get; set; }
+
+    private async Task CreateDefaultLibrary()
+    {
+        await OnCreateDefaultLibrary.InvokeAsync();
+    }
+
+    private async Task ChooseLibrary()
+    {
+        await OnChooseLibrary.InvokeAsync();
+    }
+
+    private async Task Exit()
+    {
+        await OnExit.InvokeAsync();
+    }
 
     public async Task CenterOnAsync(double latitude, double longitude)
     {

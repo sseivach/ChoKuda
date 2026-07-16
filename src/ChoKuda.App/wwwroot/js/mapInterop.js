@@ -1,6 +1,6 @@
 const maps = new Map();
 
-export function initMap(elementId, apiKey, dotNetReference) {
+export function initMap(elementId, apiKey, tileStyle, dotNetReference) {
     const element = document.getElementById(elementId);
 
     if (!element) {
@@ -13,12 +13,8 @@ export function initMap(elementId, apiKey, dotNetReference) {
         minZoom: 3,
     });
 
-    const tileUrl = `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${encodeURIComponent(apiKey)}`;
-    const tileLayer = L.tileLayer(tileUrl, {
-        maxZoom: 20,
-        detectRetina: true,
-        attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
-    });
+    const tileLayer = createTileLayer(apiKey, tileStyle);
+    setMapMaxZoom(map, tileStyle);
 
     tileLayer.addTo(map);
 
@@ -55,12 +51,26 @@ export function initMap(elementId, apiKey, dotNetReference) {
 
     maps.set(elementId, {
         map,
+        tileLayer,
         clusterGroup,
         markers: [],
         temporaryMarker: null,
         escapeHandler,
         dotNetReference,
     });
+}
+
+export function setTileStyle(elementId, apiKey, tileStyle) {
+    const state = getMapState(elementId);
+    const tileLayer = createTileLayer(apiKey, tileStyle);
+
+    if (state.tileLayer) {
+        state.map.removeLayer(state.tileLayer);
+    }
+
+    state.tileLayer = tileLayer;
+    setMapMaxZoom(state.map, tileStyle);
+    tileLayer.addTo(state.map);
 }
 
 export function setPoints(elementId, points) {
@@ -150,6 +160,48 @@ function getMapState(elementId) {
     }
 
     return state;
+}
+
+function createTileLayer(apiKey, tileStyle) {
+    const safeStyle = tileStyle ?? {};
+    const styleId = sanitizeStyleId(safeStyle.id || 'osm_bright');
+    const extension = sanitizeExtension(safeStyle.extension || 'png');
+    const retinaPlaceholder = safeStyle.supportsRetina === false ? '' : '{r}';
+    const tileUrl = `https://tiles.stadiamaps.com/tiles/${styleId}/{z}/{x}/{y}${retinaPlaceholder}.${extension}?api_key=${encodeURIComponent(apiKey)}`;
+
+    return L.tileLayer(tileUrl, {
+        maxZoom: getMaxZoom(safeStyle),
+        detectRetina: safeStyle.supportsRetina !== false,
+        attribution: safeStyle.attributionHtml || defaultAttribution(),
+    });
+}
+
+function setMapMaxZoom(map, tileStyle) {
+    const maxZoom = getMaxZoom(tileStyle ?? {});
+    map.setMaxZoom(maxZoom);
+
+    if (map.getZoom() > maxZoom) {
+        map.setZoom(maxZoom);
+    }
+}
+
+function getMaxZoom(tileStyle) {
+    const maxZoom = Number(tileStyle?.maxZoom);
+    return Number.isFinite(maxZoom) && maxZoom > 0 ? maxZoom : 20;
+}
+
+function sanitizeStyleId(styleId) {
+    const safeStyleId = String(styleId).replace(/[^a-z0-9_]/g, '');
+    return safeStyleId || 'osm_bright';
+}
+
+function sanitizeExtension(extension) {
+    const safeExtension = String(extension).toLowerCase();
+    return safeExtension === 'jpg' ? 'jpg' : 'png';
+}
+
+function defaultAttribution() {
+    return '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>';
 }
 
 function createPointIcon(iconId, color) {

@@ -39,6 +39,8 @@
                   HasStadiaApiKey="@HasStadiaApiKey"
                   StadiaApiKey="@StadiaApiKey"
                   StadiaApiKeyInput="@_stadiaApiKeyInput"
+                  MapStyle="@SelectedMapStyle"
+                  MapStyleOptions="@MapStyleOptions"
                   Points="@_data.MapPoints"
                   TemporaryMarker="@_pointEditor.SelectedCoordinate"
                   LibrarySetupTitle="@_library.SetupTitle"
@@ -46,6 +48,7 @@
                   LibrarySetupErrors="@_library.SetupErrors"
                   DefaultLibraryPath="@DefaultLibraryPath"
                   OnStadiaApiKeyInputChanged="UpdateStadiaApiKeyInput"
+                  OnMapStyleChanged="UpdateMapStyle"
                   OnSaveStadiaApiKey="SaveStadiaApiKey"
                   OnCreateDefaultLibrary="CreateDefaultLibrary"
                   OnChooseLibrary="ChooseLibrary"
@@ -89,6 +92,10 @@
                TotalPointCount="@_data.AllPoints.Count"
                Message="@StatusMessage"
                SelectedCoordinateStatus="@_pointEditor.SelectedCoordinateStatus"
+               MapStyleOptions="@MapStyleOptions"
+               SelectedMapStyleId="@SelectedMapStyle.Id"
+               CanChangeMapStyle="@(IsLibraryReady && HasStadiaApiKey)"
+               OnMapStyleChanged="UpdateMapStyle"
                OperationStatus="@_operation.Status"
                OperationMessage="@_operation.Message"
                CanRetryOperation="@_operation.CanRetry"
@@ -126,6 +133,12 @@
         _library.IsReady;
 
     private string DefaultLibraryPath => EnvironmentPaths.DefaultLibraryPath;
+
+    private IReadOnlyList<StadiaMapStyle> MapStyleOptions =>
+        StadiaMapStyles.All;
+
+    private StadiaMapStyle SelectedMapStyle =>
+        StadiaMapStyles.Get(_appSettings.StadiaMapStyleId);
 
     private bool HasStadiaApiKey =>
         !string.IsNullOrWhiteSpace(_appSettings.StadiaApiKey);
@@ -184,6 +197,7 @@
     private async Task LoadLibraryState()
     {
         _appSettings = LibraryCoordinator.LoadSettings();
+        _appSettings.StadiaMapStyleId = StadiaMapStyles.NormalizeStyleId(_appSettings.StadiaMapStyleId);
         _stadiaApiKeyInput = _appSettings.StadiaApiKey ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(_appSettings.LibraryPath))
@@ -290,6 +304,7 @@
         _appSettings.StadiaApiKey = string.IsNullOrWhiteSpace(_stadiaApiKeyInput)
             ? null
             : _stadiaApiKeyInput.Trim();
+        _appSettings.StadiaMapStyleId = SelectedMapStyle.Id;
 
         var result = LibraryCoordinator.SaveSettings(_appSettings);
         if (!result.IsSuccess)
@@ -304,6 +319,27 @@
     private void UpdateStadiaApiKeyInput(string value)
     {
         _stadiaApiKeyInput = value;
+    }
+
+    private void UpdateMapStyle(string styleId)
+    {
+        var normalizedStyleId = StadiaMapStyles.NormalizeStyleId(styleId);
+        if (string.Equals(_appSettings.StadiaMapStyleId, normalizedStyleId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _operation.SetLoading("Saving map style...");
+        _appSettings.StadiaMapStyleId = normalizedStyleId;
+
+        var result = LibraryCoordinator.SaveSettings(_appSettings);
+        if (!result.IsSuccess)
+        {
+            _operation.SetError($"Map style could not be saved. Reason: {result.ErrorMessage ?? "Unknown error."}");
+            return;
+        }
+
+        _operation.SetSuccess($"Map style: {SelectedMapStyle.DisplayName}.");
     }
 
     private void HandleMapClick(MapCoordinate coordinate)

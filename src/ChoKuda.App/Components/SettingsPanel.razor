@@ -4,6 +4,10 @@
     <input value="@StadiaApiKeyInput"
            @oninput="UpdateStadiaApiKeyInput"
            placeholder="Stadia API key" />
+    <MapStyleSelect CssClass="map-style-select setup-map-style"
+                    StyleOptions="@MapStyleOptions"
+                    SelectedStyleId="@SelectedMapStyleId"
+                    OnStyleChanged="OnMapStyleChanged" />
     <div class="setup-actions">
         <button @onclick="OnSaveStadiaApiKey">Save API key</button>
     </div>
@@ -15,6 +19,15 @@
 
     [Parameter]
     public EventCallback<string> OnStadiaApiKeyInputChanged { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<StadiaMapStyle> MapStyleOptions { get; set; } = Array.Empty<StadiaMapStyle>();
+
+    [Parameter]
+    public string SelectedMapStyleId { get; set; } = StadiaMapStyles.DefaultStyleId;
+
+    [Parameter]
+    public EventCallback<string> OnMapStyleChanged { get; set; }
 
     [Parameter]
     public EventCallback OnSaveStadiaApiKey { get; set; }

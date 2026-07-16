@@ -1,0 +1,41 @@
+@namespace ChoKuda.App.Components
+
+<label class="@CssClass">
+    <span>@Label</span>
+    <select value="@SelectedStyleId" @onchange="HandleChange" disabled="@Disabled">
+        @foreach (var group in StyleOptions.GroupBy(style => style.Group))
+        {
+            <optgroup label="@group.Key">
+                @foreach (var style in group)
+                {
+                    <option value="@style.Id">@style.DisplayName</option>
+                }
+            </optgroup>
+        }
+    </select>
+</label>
+
+@code {
+    [Parameter]
+    public string Label { get; set; } = "Map style";
+
+    [Parameter]
+    public string CssClass { get; set; } = "map-style-select";
+
+    [Parameter]
+    public IReadOnlyList<StadiaMapStyle> StyleOptions { get; set; } = Array.Empty<StadiaMapStyle>();
+
+    [Parameter]
+    public string SelectedStyleId { get; set; } = StadiaMapStyles.DefaultStyleId;
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnStyleChanged { get; set; }
+
+    private async Task HandleChange(ChangeEventArgs eventArgs)
+    {
+        await OnStyleChanged.InvokeAsync(eventArgs.Value?.ToString() ?? string.Empty);
+    }
+}

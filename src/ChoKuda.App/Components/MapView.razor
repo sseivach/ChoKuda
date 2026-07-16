@@ -5,13 +5,19 @@
 <div id="@_mapElementId" class="leaflet-map"></div>
 
 @code {
+    private const string MapInteropModulePath = "./js/mapInterop.js?v=20260715-map-styles";
+
     private readonly string _mapElementId = $"map-{Guid.NewGuid():N}";
     private DotNetObjectReference<MapView>? _dotNetReference;
     private IJSObjectReference? _module;
     private bool _initialized;
+    private string _appliedTileSettingsKey = string.Empty;
 
     [Parameter]
     public string ApiKey { get; set; } = string.Empty;
+
+    [Parameter]
+    public StadiaMapStyle MapStyle { get; set; } = StadiaMapStyles.Default;
 
     [Parameter]
     public IReadOnlyList<MapPoint> Points { get; set; } = Array.Empty<MapPoint>();
@@ -36,8 +42,9 @@
         }
 
         _dotNetReference = DotNetObjectReference.Create(this);
-        _module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./js/mapInterop.js");
-        await _module.InvokeVoidAsync("initMap", _mapElementId, ApiKey, _dotNetReference);
+        _module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", MapInteropModulePath);
+        await _module.InvokeVoidAsync("initMap", _mapElementId, ApiKey, MapStyle, _dotNetReference);
+        _appliedTileSettingsKey = TileSettingsKey;
         _initialized = true;
         await SyncMapAsync();
     }
@@ -46,6 +53,7 @@
     {
         if (_initialized)
         {
+            await SyncTileStyleAsync();
             await SyncMapAsync();
         }
     }
@@ -118,4 +126,18 @@
                 TemporaryMarker.Longitude);
         }
     }
+
+    private async Task SyncTileStyleAsync()
+    {
+        if (_module is null || string.Equals(_appliedTileSettingsKey, TileSettingsKey, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        await _module.InvokeVoidAsync("setTileStyle", _mapElementId, ApiKey, MapStyle);
+        _appliedTileSettingsKey = TileSettingsKey;
+    }
+
+    private string TileSettingsKey =>
+        $"{ApiKey}|{MapStyle.Id}";
 }

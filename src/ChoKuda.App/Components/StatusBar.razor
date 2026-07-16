@@ -2,6 +2,14 @@
     <span>Visible: @VisiblePointCount / Total: @TotalPointCount</span>
     <span>@Message</span>
     <div class="status-action">
+        @if (CanChangeMapStyle)
+        {
+            <MapStyleSelect Label="Map"
+                            CssClass="map-style-select status-map-style"
+                            StyleOptions="@MapStyleOptions"
+                            SelectedStyleId="@SelectedMapStyleId"
+                            OnStyleChanged="OnMapStyleChanged" />
+        }
         <span class="@OperationStatusClass">@OperationStatus: @OperationMessage</span>
         @if (CanRetryOperation)
         {
@@ -24,6 +32,18 @@
 
     [Parameter]
     public string SelectedCoordinateStatus { get; set; } = string.Empty;
+
+    [Parameter]
+    public IReadOnlyList<StadiaMapStyle> MapStyleOptions { get; set; } = Array.Empty<StadiaMapStyle>();
+
+    [Parameter]
+    public string SelectedMapStyleId { get; set; } = StadiaMapStyles.DefaultStyleId;
+
+    [Parameter]
+    public bool CanChangeMapStyle { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnMapStyleChanged { get; set; }
 
     [Parameter]
     public UiOperationStatus OperationStatus { get; set; } = UiOperationStatus.Idle;
