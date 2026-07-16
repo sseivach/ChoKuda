@@ -59,6 +59,11 @@ public sealed class CollectionEditorViewModel
         ClearErrors();
     }
 
+    public void OpenNew(CollectionService collectionService)
+    {
+        OpenNew(collectionService.CreateDraft());
+    }
+
     public void OpenExisting(CollectionDocument collection)
     {
         Form = CloneCollection(collection);
@@ -66,6 +71,20 @@ public sealed class CollectionEditorViewModel
         IsNew = false;
         IconSearch = collection.IconId;
         ClearErrors();
+    }
+
+    public bool OpenExisting(
+        Guid collectionId,
+        IReadOnlyCollection<CollectionDocument> collections)
+    {
+        var collection = collections.FirstOrDefault(collection => collection.Id == collectionId);
+        if (collection is null)
+        {
+            return false;
+        }
+
+        OpenExisting(collection);
+        return true;
     }
 
     public CollectionDocument? Save(Func<CollectionDocument, CollectionSaveResult> save)
@@ -88,6 +107,17 @@ public sealed class CollectionEditorViewModel
         return result.Collection;
     }
 
+    public CollectionDocument? Save(
+        FileLibraryPaths paths,
+        CollectionService collectionService,
+        IReadOnlyCollection<CollectionDocument> existingCollections)
+    {
+        return Save(collection =>
+            IsNew
+                ? collectionService.CreateCollection(paths, collection, existingCollections)
+                : collectionService.UpdateCollection(paths, collection, existingCollections));
+    }
+
     public bool Delete(Func<Guid, CollectionDeleteResult> delete)
     {
         if (Form is null || IsNew)
@@ -107,6 +137,9 @@ public sealed class CollectionEditorViewModel
         Clear();
         return true;
     }
+
+    public bool Delete(FileLibraryPaths paths, CollectionService collectionService) =>
+        Delete(collectionId => collectionService.DeleteCollection(paths, collectionId));
 
     public void Clear()
     {

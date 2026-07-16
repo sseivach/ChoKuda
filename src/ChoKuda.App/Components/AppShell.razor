@@ -2,8 +2,7 @@
 @implements IDisposable
 @inject AppShellState ShellState
 @inject AppEnvironmentPaths EnvironmentPaths
-@inject AppSettingsService AppSettingsService
-@inject FileLibraryService FileLibraryService
+@inject LibraryCoordinator LibraryCoordinator
 @inject PointService PointService
 @inject CollectionService CollectionService
 @inject AttachmentFileClassifier AttachmentFileClassifier
@@ -22,9 +21,9 @@
                Search="_search"
                Filters="_filters"
                CollectionEditor="_collectionEditor"
-               SearchResults="SearchResults"
-               Collections="_collections"
-               Tags="_tagIndex"
+               SearchResults="_data.SearchResults"
+               Collections="_data.Collections"
+               Tags="_data.TagIndex"
                OnSearch="RunSearch"
                OnResetSearch="ResetSearch"
                OnSearchResultSelected="OpenSearchResult"
@@ -40,11 +39,11 @@
                   HasStadiaApiKey="@HasStadiaApiKey"
                   StadiaApiKey="@StadiaApiKey"
                   StadiaApiKeyInput="@_stadiaApiKeyInput"
-                  Points="@_mapPoints"
+                  Points="@_data.MapPoints"
                   TemporaryMarker="@_pointEditor.SelectedCoordinate"
-                  LibrarySetupTitle="@LibrarySetupTitle"
-                  LibrarySetupMessage="@LibrarySetupMessage"
-                  LibrarySetupErrors="@_librarySetupErrors"
+                  LibrarySetupTitle="@_library.SetupTitle"
+                  LibrarySetupMessage="@_library.SetupMessage"
+                  LibrarySetupErrors="@_library.SetupErrors"
                   DefaultLibraryPath="@DefaultLibraryPath"
                   OnStadiaApiKeyInputChanged="UpdateStadiaApiKeyInput"
                   OnSaveStadiaApiKey="SaveStadiaApiKey"
@@ -57,7 +56,7 @@
 
     <PointPanel IsOpen="@ShellState.IsRightPanelOpen"
                 Editor="_pointEditor"
-                Collections="_collections"
+                Collections="_data.Collections"
                 Photos="PhotoItems"
                 Files="FileItems"
                 AttachmentErrors="_attachments.Errors"
@@ -69,12 +68,12 @@
                 OnOpenAttachment="OpenAttachment"
                 OnOpenPhoto="OpenPhotoViewer" />
 
-    @if (_libraryLoadErrors.Count > 0)
+    @if (_library.LoadErrors.Count > 0)
     {
         <div class="global-error-area">
             <UiErrorPanel Title="Some library JSON files could not be loaded"
                           Description="ChoKuda skipped the broken files and loaded everything else it could read."
-                          Messages="_libraryLoadErrors"
+                          Messages="_library.LoadErrors"
                           Action="Repair or remove the listed JSON files, then reopen ChoKuda." />
         </div>
     }
@@ -86,8 +85,8 @@
                  OnZoomOut="ZoomPhotoViewerOut"
                  OnResetZoom="ResetPhotoViewerZoom" />
 
-    <StatusBar VisiblePointCount="@_filteredPoints.Count"
-               TotalPointCount="@_allPoints.Count"
+    <StatusBar VisiblePointCount="@_data.FilteredPoints.Count"
+               TotalPointCount="@_data.AllPoints.Count"
                Message="@StatusMessage"
                SelectedCoordinateStatus="@_pointEditor.SelectedCoordinateStatus"
                OperationStatus="@_operation.Status"
@@ -100,21 +99,16 @@
 
 @code {
     private AppSettings _appSettings = new();
-    private IReadOnlyList<PointDocument> _allPoints = Array.Empty<PointDocument>();
-    private IReadOnlyList<PointDocument> _filteredPoints = Array.Empty<PointDocument>();
-    private IReadOnlyList<CollectionDocument> _collections = Array.Empty<CollectionDocument>();
-    private IReadOnlyList<MapPoint> _mapPoints = Array.Empty<MapPoint>();
-    private IReadOnlyList<string> _tagIndex = Array.Empty<string>();
     private MapWorkspace? _mapWorkspace;
     private readonly SearchViewModel _search = new();
     private readonly FilterViewModel _filters = new();
+    private readonly LibraryDataViewModel _data = new();
     private readonly PointEditorViewModel _pointEditor = new();
     private readonly AttachmentDraftState _attachments = new();
     private readonly CollectionEditorViewModel _collectionEditor = new();
+    private readonly LibraryViewModel _library = new();
     private readonly UiOperationViewModel _operation = new();
     private string _stadiaApiKeyInput = string.Empty;
-    private IReadOnlyList<string> _librarySetupErrors = Array.Empty<string>();
-    private IReadOnlyList<string> _libraryLoadErrors = Array.Empty<string>();
 
     private CollectionDocument? _collectionForm =>
         _collectionEditor.Form;
@@ -128,16 +122,10 @@
     private bool _isNewPoint =>
         _pointEditor.IsNew;
 
-    private bool IsLibraryReady { get; set; }
-
-    private string? LibraryPath { get; set; }
+    private bool IsLibraryReady =>
+        _library.IsReady;
 
     private string DefaultLibraryPath => EnvironmentPaths.DefaultLibraryPath;
-
-    private string LibrarySetupTitle { get; set; } = "Choose ChoKuda library";
-
-    private string LibrarySetupMessage { get; set; } =
-        "Create a new library in the default location or choose an existing library folder.";
 
     private bool HasStadiaApiKey =>
         !string.IsNullOrWhiteSpace(_appSettings.StadiaApiKey);
@@ -152,7 +140,7 @@
         $"Search: {(_search.IsActive ? "active" : "none")} | " +
         $"Collections: {_filters.SelectedCollectionIds.Count} {_filters.CollectionMode.ToString().ToUpperInvariant()} | " +
         $"Tags: {_filters.SelectedTags.Count} {_filters.TagMode.ToString().ToUpperInvariant()} | " +
-        $"JSON errors: {_libraryLoadErrors.Count}";
+        $"JSON errors: {_library.LoadErrors.Count}";
 
     private string ShellClass =>
         ShellState.IsLeftPanelCollapsed
@@ -161,11 +149,6 @@
 
     private bool HasUnsavedCollectionChanges =>
         _collectionEditor.HasUnsavedChanges;
-
-    private IEnumerable<PointDocument> SearchResults =>
-        _filteredPoints
-            .OrderBy(point => point.Title, StringComparer.CurrentCultureIgnoreCase)
-            .ThenBy(point => point.Id);
 
     private IEnumerable<AttachmentDisplayItem> PhotoItems =>
         _attachments.GetDisplayItems(
@@ -200,32 +183,19 @@
 
     private async Task LoadLibraryState()
     {
-        _appSettings = AppSettingsService.Load();
+        _appSettings = LibraryCoordinator.LoadSettings();
         _stadiaApiKeyInput = _appSettings.StadiaApiKey ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(_appSettings.LibraryPath))
         {
-            IsLibraryReady = false;
-            LibraryPath = null;
-            LibrarySetupTitle = "Choose ChoKuda library";
-            LibrarySetupMessage = "Create a new library in the default location or choose an existing library folder.";
-            _librarySetupErrors = Array.Empty<string>();
-            _libraryLoadErrors = Array.Empty<string>();
+            _library.SetNoLibrarySelected();
             _operation.SetIdle("Choose a library to start.");
             return;
         }
 
-        if (!Directory.Exists(_appSettings.LibraryPath))
+        if (!LibraryCoordinator.LibraryFolderExists(_appSettings.LibraryPath))
         {
-            IsLibraryReady = false;
-            LibraryPath = _appSettings.LibraryPath;
-            LibrarySetupTitle = "Library not found";
-            LibrarySetupMessage = "The saved ChoKuda library folder is missing or unavailable.";
-            _librarySetupErrors =
-            [
-                $"Saved library folder was not found: {_appSettings.LibraryPath}",
-            ];
-            _libraryLoadErrors = Array.Empty<string>();
+            _library.SetMissingLibrary(_appSettings.LibraryPath);
             _operation.SetError("Saved library folder is missing.", UiRetryAction.PrepareLibrary);
             return;
         }
@@ -240,7 +210,7 @@
 
     private async Task ChooseLibrary()
     {
-        var selectedPath = LibraryFolderPicker.PickFolder(LibraryPath ?? DefaultLibraryPath);
+        var selectedPath = LibraryFolderPicker.PickFolder(_library.Path ?? DefaultLibraryPath);
 
         if (!string.IsNullOrWhiteSpace(selectedPath))
         {
@@ -256,115 +226,79 @@
             await InvokeAsync(StateHasChanged);
         }
 
-        try
+        var result = LibraryCoordinator.OpenLibrary(libraryPath, _appSettings);
+        if (!result.IsSuccess)
         {
-            FileLibraryService.EnsureLibrary(libraryPath);
-            _appSettings.LibraryPath = libraryPath;
-            AppSettingsService.Save(_appSettings);
-            IsLibraryReady = true;
-            LibraryPath = libraryPath;
-            LibrarySetupTitle = "Choose ChoKuda library";
-            LibrarySetupMessage = "Create a new library in the default location or choose an existing library folder.";
-            _librarySetupErrors = Array.Empty<string>();
-            LoadLibraryData();
-            if (_libraryLoadErrors.Count == 0)
-            {
-                _operation.SetSuccess("Library is ready.");
-            }
-        }
-        catch (Exception exception) when (IsLibrarySetupException(exception))
-        {
-            IsLibraryReady = false;
-            LibraryPath = libraryPath;
-            LibrarySetupTitle = "Library could not be opened";
-            LibrarySetupMessage = "ChoKuda could not create or open the selected library folder.";
-            _librarySetupErrors =
-            [
-                $"Library folder could not be prepared: {libraryPath}. Reason: {exception.Message}",
-            ];
-            _libraryLoadErrors = Array.Empty<string>();
+            _library.SetOpenFailed(libraryPath, result.ErrorMessage ?? "Unknown error.");
             _operation.SetError("Library folder could not be opened.", UiRetryAction.PrepareLibrary);
+            return;
         }
+
+        _library.SetReady(libraryPath);
+        ReloadLibraryDataAndSetSuccess("Library is ready.");
     }
 
     private bool LoadLibraryData()
     {
-        if (string.IsNullOrWhiteSpace(LibraryPath))
+        var paths = GetCurrentLibraryPaths();
+        if (paths is null)
         {
-            _allPoints = Array.Empty<PointDocument>();
-            _collections = Array.Empty<CollectionDocument>();
-            _libraryLoadErrors = Array.Empty<string>();
-            ApplyFiltersAndMapProjection();
+            _library.ClearLoadErrors();
+            _data.Clear(_search, _filters);
             return true;
         }
 
-        try
+        var result = LibraryCoordinator.LoadData(paths);
+        if (!result.IsSuccess)
         {
-            var paths = new FileLibraryPaths(LibraryPath);
-            var pointsResult = FileLibraryService.LoadPoints(paths);
-            var collectionsResult = FileLibraryService.LoadCollections(paths);
-            _allPoints = pointsResult.Items;
-            _collections = collectionsResult.Items;
-            _tagIndex = TagIndex.Build(_allPoints);
-            _libraryLoadErrors = FormatLoadErrors("Point", pointsResult.Errors)
-                .Concat(FormatLoadErrors("Collection", collectionsResult.Errors))
-                .ToArray();
-            RemoveMissingFilterValues();
-            ApplyFiltersAndMapProjection();
-
-            if (_libraryLoadErrors.Count > 0)
-            {
-                _operation.SetError("Library loaded with JSON errors.", UiRetryAction.ReloadLibrary);
-            }
-
-            return true;
-        }
-        catch (Exception exception) when (IsLibrarySetupException(exception))
-        {
-            _libraryLoadErrors =
-            [
-                $"Library data could not be loaded from {LibraryPath}. Reason: {exception.Message}",
-            ];
+            _library.SetLoadFailed(_library.Path ?? string.Empty, result.ErrorMessage ?? "Unknown error.");
             _operation.SetError("Library data could not be loaded.", UiRetryAction.ReloadLibrary);
             return false;
         }
+
+        _library.SetLoadErrors(result.PointErrors, result.CollectionErrors);
+        _data.SetLoaded(result.Points, result.Collections, _search, _filters);
+
+        if (_library.HasLoadErrors)
+        {
+            _operation.SetError("Library loaded with JSON errors.", UiRetryAction.ReloadLibrary);
+        }
+
+        return true;
+    }
+
+    private bool ReloadLibraryDataAndSetSuccess(string successMessage)
+    {
+        var loaded = LoadLibraryData();
+        if (loaded && !_library.HasLoadErrors)
+        {
+            _operation.SetSuccess(successMessage);
+        }
+
+        return loaded;
     }
 
     private void ApplyFiltersAndMapProjection()
     {
-        var searchedPoints = _search.Apply(_allPoints);
-
-        _filteredPoints = _filters.Apply(searchedPoints);
-        _mapPoints = MapPointProjection.FromPointDocuments(
-            _filteredPoints,
-            _collections.Select(collection => new CollectionMapStyle(collection.Id, IconOrDefault(collection.IconId), collection.Color)),
-            _filters.SelectedCollectionIds);
-    }
-
-    private void RemoveMissingFilterValues()
-    {
-        _filters.RemoveMissingValues(
-            _collections.Select(collection => collection.Id),
-            _tagIndex);
+        _data.RebuildProjection(_search, _filters);
     }
 
     private void SaveStadiaApiKey()
     {
         _operation.SetLoading("Saving map settings...");
 
-        try
-        {
-            _appSettings.StadiaApiKey = string.IsNullOrWhiteSpace(_stadiaApiKeyInput)
-                ? null
-                : _stadiaApiKeyInput.Trim();
+        _appSettings.StadiaApiKey = string.IsNullOrWhiteSpace(_stadiaApiKeyInput)
+            ? null
+            : _stadiaApiKeyInput.Trim();
 
-            AppSettingsService.Save(_appSettings);
-            _operation.SetSuccess("Map settings saved.");
-        }
-        catch (Exception exception) when (IsLibrarySetupException(exception))
+        var result = LibraryCoordinator.SaveSettings(_appSettings);
+        if (!result.IsSuccess)
         {
-            _operation.SetError($"Map settings could not be saved. Reason: {exception.Message}");
+            _operation.SetError($"Map settings could not be saved. Reason: {result.ErrorMessage ?? "Unknown error."}");
+            return;
         }
+
+        _operation.SetSuccess("Map settings saved.");
     }
 
     private void UpdateStadiaApiKeyInput(string value)
@@ -384,7 +318,7 @@
 
     private async Task OpenSearchResult(Guid pointId)
     {
-        var point = _allPoints.FirstOrDefault(point => point.Id == pointId);
+        var point = _data.FindPoint(pointId);
 
         if (point is null)
         {
@@ -411,16 +345,12 @@
             return false;
         }
 
-        var point = PointService.LoadPoint(paths, pointId);
-        if (point is null)
+        if (!_pointEditor.OpenSavedPoint(paths, pointId, PointService, _attachments))
         {
             LoadLibraryData();
             return false;
         }
 
-        _pointEditor.OpenExisting(point);
-        _attachments.ClearAll();
-        ClearPointErrors();
         ShellState.OpenRightPanelPreview();
         return true;
     }
@@ -432,13 +362,11 @@
 
     private void OpenNewPointPanel()
     {
-        if (!_pointEditor.OpenNewFromSelectedCoordinate(PointService.CreateDraft))
+        if (!_pointEditor.OpenNewFromSelectedCoordinate(PointService, _attachments))
         {
             return;
         }
 
-        _attachments.ClearAll();
-        ClearPointErrors();
         ShellState.OpenRightPanelPreview();
     }
 
@@ -457,13 +385,7 @@
 
         await StartOperation("Saving point...");
         ClearAttachmentErrors();
-        var saveResult = _pointEditor.SaveWithAttachments(
-            point => _isNewPoint
-                ? PointService.CreatePoint(paths, point)
-                : PointService.UpdatePoint(paths, point),
-            _attachments,
-            (point, pendingAttachments) => AttachmentImportService.ImportPendingAttachments(paths, point, pendingAttachments),
-            point => PointService.UpdatePoint(paths, point));
+        var saveResult = _pointEditor.SaveWithAttachments(paths, PointService, AttachmentImportService, _attachments);
 
         if (!saveResult.IsSuccess)
         {
@@ -477,11 +399,7 @@
             return;
         }
 
-        LoadLibraryData();
-        if (_libraryLoadErrors.Count == 0)
-        {
-            _operation.SetSuccess("Point saved.");
-        }
+        ReloadLibraryDataAndSetSuccess("Point saved.");
 
         await InvokeAsync(StateHasChanged);
     }
@@ -507,20 +425,14 @@
         }
 
         await StartOperation("Deleting point...");
-        if (!_pointEditor.Delete(
-            pointId => PointService.DeletePoint(paths, pointId),
-            _attachments))
+        if (!_pointEditor.Delete(paths, PointService, _attachments))
         {
             _operation.SetError("Point could not be deleted.");
             return;
         }
 
         ShellState.CloseRightPanel();
-        LoadLibraryData();
-        if (_libraryLoadErrors.Count == 0)
-        {
-            _operation.SetSuccess("Point deleted.");
-        }
+        ReloadLibraryDataAndSetSuccess("Point deleted.");
     }
 
     private async Task ClosePointPanel()
@@ -554,7 +466,7 @@
             return;
         }
 
-        _collectionEditor.OpenNew(CollectionService.CreateDraft());
+        _collectionEditor.OpenNew(CollectionService);
     }
 
     private async Task EditCollection(Guid collectionId)
@@ -564,14 +476,11 @@
             return;
         }
 
-        var collection = FindCollection(collectionId);
-        if (collection is null)
+        if (!_collectionEditor.OpenExisting(collectionId, _data.Collections))
         {
             LoadLibraryData();
             return;
         }
-
-        _collectionEditor.OpenExisting(collection);
     }
 
     private async Task SaveCollection()
@@ -583,10 +492,7 @@
         }
 
         await StartOperation("Saving collection...");
-        var savedCollection = _collectionEditor.Save(collection =>
-            _isNewCollection
-                ? CollectionService.CreateCollection(paths, collection, _collections)
-                : CollectionService.UpdateCollection(paths, collection, _collections));
+        var savedCollection = _collectionEditor.Save(paths, CollectionService, _data.Collections);
 
         if (savedCollection is null)
         {
@@ -594,11 +500,7 @@
             return;
         }
 
-        LoadLibraryData();
-        if (_libraryLoadErrors.Count == 0)
-        {
-            _operation.SetSuccess("Collection saved.");
-        }
+        ReloadLibraryDataAndSetSuccess("Collection saved.");
 
         await InvokeAsync(StateHasChanged);
     }
@@ -624,17 +526,13 @@
         }
 
         await StartOperation("Deleting collection...");
-        if (!_collectionEditor.Delete(collectionId => CollectionService.DeleteCollection(paths, collectionId)))
+        if (!_collectionEditor.Delete(paths, CollectionService))
         {
             _operation.SetError("Collection could not be deleted.");
             return;
         }
 
-        LoadLibraryData();
-        if (_libraryLoadErrors.Count == 0)
-        {
-            _operation.SetSuccess("Collection deleted.");
-        }
+        ReloadLibraryDataAndSetSuccess("Collection deleted.");
     }
 
     private async Task CancelCollectionEdit()
@@ -679,15 +577,12 @@
         switch (_operation.RetryAction)
         {
             case UiRetryAction.PrepareLibrary:
-                await UseLibrary(LibraryPath ?? _appSettings.LibraryPath ?? DefaultLibraryPath);
+                await UseLibrary(_library.Path ?? _appSettings.LibraryPath ?? DefaultLibraryPath);
                 break;
 
             case UiRetryAction.ReloadLibrary:
                 await StartOperation("Reloading library...");
-                if (LoadLibraryData() && _libraryLoadErrors.Count == 0)
-                {
-                    _operation.SetSuccess("Library reloaded.");
-                }
+                ReloadLibraryDataAndSetSuccess("Library reloaded.");
 
                 await InvokeAsync(StateHasChanged);
                 break;
@@ -703,12 +598,7 @@
 
     private FileLibraryPaths? GetCurrentLibraryPaths()
     {
-        if (!IsLibraryReady || string.IsNullOrWhiteSpace(LibraryPath))
-        {
-            return null;
-        }
-
-        return new FileLibraryPaths(LibraryPath);
+        return _library.GetCurrentPaths();
     }
 
     private void AddPendingAttachments()
@@ -742,12 +632,12 @@
             return;
         }
 
-        ClearAttachmentErrors();
-        var existingFilePaths = filePaths
-            .Where(File.Exists)
-            .ToArray();
+        var stageResult = _attachments.StageFiles(
+            filePaths,
+            File.Exists,
+            filePath => AttachmentFileClassifier.Classify(filePath));
 
-        if (existingFilePaths.Length == 0)
+        if (!stageResult.HasExistingFiles)
         {
             if (!string.IsNullOrWhiteSpace(noFilesMessage))
             {
@@ -757,15 +647,9 @@
             return;
         }
 
-        var pendingCountBefore = _attachments.PendingAttachments.Count;
-        _attachments.AddFiles(
-            existingFilePaths,
-            filePath => AttachmentFileClassifier.Classify(filePath));
-
-        var addedCount = _attachments.PendingAttachments.Count - pendingCountBefore;
-        if (addedCount > 0)
+        if (stageResult.HasAddedFiles)
         {
-            _operation.SetSuccess($"{successMessage} Added: {addedCount}.");
+            _operation.SetSuccess($"{successMessage} Added: {stageResult.AddedCount}.");
         }
         else
         {
@@ -802,20 +686,13 @@
             return;
         }
 
-        if (!_pointEditor.DeleteSavedAttachment(
-            item,
-            _attachments,
-            (point, kind, storedName) => AttachmentDeleteService.DeleteSavedAttachment(paths, point, kind, storedName)))
+        if (!_pointEditor.DeleteSavedAttachment(item, _attachments, paths, AttachmentDeleteService))
         {
             _operation.SetError("Attachment could not be deleted.");
             return;
         }
 
-        LoadLibraryData();
-        if (_libraryLoadErrors.Count == 0)
-        {
-            _operation.SetSuccess("Attachment deleted.");
-        }
+        ReloadLibraryDataAndSetSuccess("Attachment deleted.");
     }
 
     private void OpenAttachment(AttachmentDisplayItem item)
@@ -866,27 +743,5 @@
     {
         _attachments.ClearErrors();
     }
-
-    private CollectionDocument? FindCollection(Guid collectionId) =>
-        _collections.FirstOrDefault(collection => collection.Id == collectionId);
-
-    private static string IconOrDefault(string iconId) =>
-        string.IsNullOrWhiteSpace(iconId)
-            ? PointDefaults.DefaultPinIconId
-            : iconId;
-
-    private static IEnumerable<string> FormatLoadErrors(
-        string documentType,
-        IEnumerable<FileLibraryLoadError> errors)
-    {
-        return errors.Select(error =>
-            $"{documentType} JSON could not be loaded: {Path.GetFileName(error.FilePath)}. Reason: {error.Message}");
-    }
-
-    private static bool IsLibrarySetupException(Exception exception) =>
-        exception is IOException
-            or UnauthorizedAccessException
-            or ArgumentException
-            or NotSupportedException;
 
 }

@@ -91,12 +91,44 @@ public sealed class PointEditorViewModel
         return true;
     }
 
+    public bool OpenNewFromSelectedCoordinate(
+        PointService pointService,
+        AttachmentDraftState attachments)
+    {
+        if (!OpenNewFromSelectedCoordinate(pointService.CreateDraft))
+        {
+            return false;
+        }
+
+        attachments.ClearAll();
+        ClearErrors();
+        return true;
+    }
+
     public void OpenExisting(PointDocument point)
     {
         ClearSelectedCoordinate();
         Form = ClonePoint(point);
         _savedSnapshot = ClonePoint(point);
         IsNew = false;
+    }
+
+    public bool OpenSavedPoint(
+        FileLibraryPaths paths,
+        Guid pointId,
+        PointService pointService,
+        AttachmentDraftState attachments)
+    {
+        var point = pointService.LoadPoint(paths, pointId);
+        if (point is null)
+        {
+            return false;
+        }
+
+        OpenExisting(point);
+        attachments.ClearAll();
+        ClearErrors();
+        return true;
     }
 
     public void MarkSaved(PointDocument point)
@@ -172,6 +204,21 @@ public sealed class PointEditorViewModel
         return PointEditorSaveResult.Success(attachmentSaveResult.Point);
     }
 
+    public PointEditorSaveResult SaveWithAttachments(
+        FileLibraryPaths paths,
+        PointService pointService,
+        AttachmentImportService attachmentImportService,
+        AttachmentDraftState attachments)
+    {
+        return SaveWithAttachments(
+            point => IsNew
+                ? pointService.CreatePoint(paths, point)
+                : pointService.UpdatePoint(paths, point),
+            attachments,
+            (point, pendingAttachments) => attachmentImportService.ImportPendingAttachments(paths, point, pendingAttachments),
+            point => pointService.UpdatePoint(paths, point));
+    }
+
     public bool Delete(
         Func<Guid, PointDeleteResult> delete,
         AttachmentDraftState? attachments = null)
@@ -196,6 +243,14 @@ public sealed class PointEditorViewModel
         return true;
     }
 
+    public bool Delete(
+        FileLibraryPaths paths,
+        PointService pointService,
+        AttachmentDraftState? attachments = null)
+    {
+        return Delete(pointId => pointService.DeletePoint(paths, pointId), attachments);
+    }
+
     public bool DeleteSavedAttachment(
         AttachmentDisplayItem item,
         AttachmentDraftState attachments,
@@ -217,6 +272,18 @@ public sealed class PointEditorViewModel
 
         MarkSaved(result.Point);
         return true;
+    }
+
+    public bool DeleteSavedAttachment(
+        AttachmentDisplayItem item,
+        AttachmentDraftState attachments,
+        FileLibraryPaths paths,
+        AttachmentDeleteService attachmentDeleteService)
+    {
+        return DeleteSavedAttachment(
+            item,
+            attachments,
+            (point, kind, storedName) => attachmentDeleteService.DeleteSavedAttachment(paths, point, kind, storedName));
     }
 
     public void Clear()

@@ -23,6 +23,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton(environmentPaths);
         services.AddSingleton(new AppSettingsService(environmentPaths.AppSettingsFilePath));
         services.AddSingleton<FileLibraryService>();
+        services.AddSingleton<LibraryCoordinator>();
         services.AddSingleton<PointService>();
         services.AddSingleton<CollectionService>();
         services.AddSingleton<IImageProbe, WpfImageProbe>();

@@ -26,6 +26,64 @@ public sealed class AttachmentDraftStateTests
     }
 
     [Fact]
+    public void StageFilesClearsErrorsFiltersMissingFilesAndReturnsAddedCount()
+    {
+        var attachments = new AttachmentDraftState();
+        var photoPath = Path.Combine("c:", "temp", "photo.jpg");
+        var missingPath = Path.Combine("c:", "temp", "missing.jpg");
+        attachments.SetErrors(["Old error."]);
+
+        var result = attachments.StageFiles(
+            [photoPath, missingPath],
+            filePath => filePath == photoPath,
+            _ => AttachmentKind.Photo);
+
+        Assert.True(result.HasExistingFiles);
+        Assert.True(result.HasAddedFiles);
+        Assert.Equal(1, result.ExistingFileCount);
+        Assert.Equal(1, result.AddedCount);
+        Assert.Empty(attachments.Errors);
+        Assert.Single(attachments.PendingAttachments);
+        Assert.Equal(photoPath, attachments.PendingAttachments[0].SourcePath);
+    }
+
+    [Fact]
+    public void StageFilesReportsDuplicateOnlyWithoutAddingAgain()
+    {
+        var attachments = new AttachmentDraftState();
+        var photoPath = Path.Combine("c:", "temp", "photo.jpg");
+        attachments.AddFiles([photoPath], _ => AttachmentKind.Photo);
+
+        var result = attachments.StageFiles(
+            [photoPath],
+            _ => true,
+            _ => AttachmentKind.Photo);
+
+        Assert.True(result.HasExistingFiles);
+        Assert.False(result.HasAddedFiles);
+        Assert.Equal(1, result.ExistingFileCount);
+        Assert.Equal(0, result.AddedCount);
+        Assert.Single(attachments.PendingAttachments);
+    }
+
+    [Fact]
+    public void StageFilesReportsNoExistingFiles()
+    {
+        var attachments = new AttachmentDraftState();
+
+        var result = attachments.StageFiles(
+            [Path.Combine("c:", "temp", "missing.pdf")],
+            _ => false,
+            _ => AttachmentKind.File);
+
+        Assert.False(result.HasExistingFiles);
+        Assert.False(result.HasAddedFiles);
+        Assert.Equal(0, result.ExistingFileCount);
+        Assert.Equal(0, result.AddedCount);
+        Assert.Empty(attachments.PendingAttachments);
+    }
+
+    [Fact]
     public void GetDisplayItemsCombinesSavedAndPendingItems()
     {
         var attachments = new AttachmentDraftState();

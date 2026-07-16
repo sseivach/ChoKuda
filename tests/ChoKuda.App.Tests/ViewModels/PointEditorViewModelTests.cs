@@ -64,6 +64,46 @@ public sealed class PointEditorViewModelTests
     }
 
     [Fact]
+    public void OpenNewFromSelectedCoordinateWithServiceClearsDraftStateAndErrors()
+    {
+        var editor = new PointEditorViewModel();
+        var attachments = new AttachmentDraftState();
+        editor.SelectCoordinate(new MapCoordinate { Latitude = 10.5, Longitude = 20.25 }, isRightPanelOpen: false);
+        attachments.AddFiles(["guide.pdf"], _ => AttachmentKind.File);
+        attachments.SetErrors(["Old attachment error."]);
+        attachments.OpenPhotoViewer("photo.jpg");
+        editor.ApplySaveErrors([new PointSaveError(PointService.TitleFieldName, "Old point error.")]);
+
+        var opened = editor.OpenNewFromSelectedCoordinate(new PointService(), attachments);
+
+        Assert.True(opened);
+        Assert.True(editor.IsNew);
+        Assert.Equal("New point", editor.Form?.Title);
+        Assert.Equal(10.5, editor.Form?.Latitude);
+        Assert.Equal(20.25, editor.Form?.Longitude);
+        Assert.Null(editor.TitleError);
+        Assert.Empty(attachments.PendingAttachments);
+        Assert.Empty(attachments.Errors);
+        Assert.Null(attachments.PhotoViewerPath);
+    }
+
+    [Fact]
+    public void OpenNewFromSelectedCoordinateWithServiceKeepsStateWhenCoordinateIsMissing()
+    {
+        var editor = new PointEditorViewModel();
+        var attachments = new AttachmentDraftState();
+        attachments.AddFiles(["guide.pdf"], _ => AttachmentKind.File);
+        attachments.SetErrors(["Old attachment error."]);
+
+        var opened = editor.OpenNewFromSelectedCoordinate(new PointService(), attachments);
+
+        Assert.False(opened);
+        Assert.Null(editor.Form);
+        Assert.Single(attachments.PendingAttachments);
+        Assert.Equal(["Old attachment error."], attachments.Errors);
+    }
+
+    [Fact]
     public void OpenNewCreatesDirtyNewForm()
     {
         var editor = new PointEditorViewModel();
@@ -87,6 +127,49 @@ public sealed class PointEditorViewModelTests
         editor.Form!.Title = "Changed";
 
         Assert.True(editor.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void OpenSavedPointWithServiceLoadsPointAndClearsDraftState()
+    {
+        using var temp = TempDirectory.Create();
+        var paths = new FileLibraryService().EnsureLibrary(temp.Path);
+        var pointService = new PointService();
+        var savedPoint = pointService.CreatePoint(paths, CreatePoint("Saved")).Point!;
+        var editor = new PointEditorViewModel();
+        var attachments = new AttachmentDraftState();
+        editor.SelectCoordinate(new MapCoordinate { Latitude = 10, Longitude = 20 }, isRightPanelOpen: false);
+        attachments.AddFiles(["guide.pdf"], _ => AttachmentKind.File);
+        attachments.SetErrors(["Old attachment error."]);
+        editor.ApplySaveErrors([new PointSaveError(PointService.TitleFieldName, "Old point error.")]);
+
+        var opened = editor.OpenSavedPoint(paths, savedPoint.Id, pointService, attachments);
+
+        Assert.True(opened);
+        Assert.False(editor.IsNew);
+        Assert.False(editor.HasUnsavedChanges);
+        Assert.Equal(savedPoint.Id, editor.Form?.Id);
+        Assert.Null(editor.SelectedCoordinate);
+        Assert.Null(editor.TitleError);
+        Assert.Empty(attachments.PendingAttachments);
+        Assert.Empty(attachments.Errors);
+    }
+
+    [Fact]
+    public void OpenSavedPointWithServiceReturnsFalseWhenPointIsMissing()
+    {
+        using var temp = TempDirectory.Create();
+        var paths = new FileLibraryService().EnsureLibrary(temp.Path);
+        var editor = new PointEditorViewModel();
+        var attachments = new AttachmentDraftState();
+        editor.OpenExisting(CreatePoint("Current"));
+        attachments.AddFiles(["guide.pdf"], _ => AttachmentKind.File);
+
+        var opened = editor.OpenSavedPoint(paths, Guid.NewGuid(), new PointService(), attachments);
+
+        Assert.False(opened);
+        Assert.Equal("Current", editor.Form?.Title);
+        Assert.Single(attachments.PendingAttachments);
     }
 
     [Fact]
@@ -232,6 +315,54 @@ public sealed class PointEditorViewModelTests
     }
 
     [Fact]
+    public void SaveWithAttachmentsAndServicesCreatesNewPoint()
+    {
+        using var temp = TempDirectory.Create();
+        var paths = new FileLibraryService().EnsureLibrary(temp.Path);
+        var editor = new PointEditorViewModel();
+        var attachments = new AttachmentDraftState();
+        editor.OpenNew(CreatePoint("  Havasu Falls  "));
+
+        var result = editor.SaveWithAttachments(paths, new PointService(), new AttachmentImportService(), attachments);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Point);
+        Assert.NotEqual(Guid.Empty, result.Point.Id);
+        Assert.Equal("Havasu Falls", result.Point.Title);
+        Assert.False(editor.IsNew);
+        Assert.False(editor.HasUnsavedChanges);
+        Assert.True(File.Exists(paths.GetPointFilePath(result.Point.Id)));
+    }
+
+    [Fact]
+    public void SaveWithAttachmentsAndServicesUpdatesPointAndImportsPendingFile()
+    {
+        using var temp = TempDirectory.Create();
+        var paths = new FileLibraryService().EnsureLibrary(temp.Path);
+        var pointService = new PointService();
+        var savedPoint = pointService.CreatePoint(paths, CreatePoint("Arizona")).Point!;
+        var sourceFile = Path.Combine(temp.Path, "guide.pdf");
+        File.WriteAllText(sourceFile, "guide");
+        var editor = new PointEditorViewModel();
+        var attachments = new AttachmentDraftState();
+        editor.OpenExisting(savedPoint);
+        editor.Form!.Title = "  Mexico  ";
+        attachments.AddFiles([sourceFile], _ => AttachmentKind.File);
+
+        var result = editor.SaveWithAttachments(paths, pointService, new AttachmentImportService(), attachments);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Point);
+        Assert.Equal(savedPoint.Id, result.Point.Id);
+        Assert.Equal("Mexico", result.Point.Title);
+        Assert.Single(result.Point.Files);
+        Assert.True(File.Exists(Path.Combine(paths.FilesPath, result.Point.Files[0])));
+        Assert.Empty(attachments.PendingAttachments);
+        Assert.Empty(attachments.Errors);
+        Assert.False(editor.HasUnsavedChanges);
+    }
+
+    [Fact]
     public void SaveWithAttachmentsImportsPendingFilesAndMarksImportedPointSaved()
     {
         var editor = new PointEditorViewModel();
@@ -324,6 +455,28 @@ public sealed class PointEditorViewModelTests
     }
 
     [Fact]
+    public void DeleteWithServicesDeletesPointAndClearsAttachmentState()
+    {
+        using var temp = TempDirectory.Create();
+        var paths = new FileLibraryService().EnsureLibrary(temp.Path);
+        var pointService = new PointService();
+        var savedPoint = pointService.CreatePoint(paths, CreatePoint("Arizona")).Point!;
+        var editor = new PointEditorViewModel();
+        var attachments = new AttachmentDraftState();
+        editor.OpenExisting(savedPoint);
+        attachments.AddFiles(["guide.pdf"], _ => AttachmentKind.File);
+        attachments.SetErrors(["Old attachment error."]);
+
+        var deleted = editor.Delete(paths, pointService, attachments);
+
+        Assert.True(deleted);
+        Assert.Null(editor.Form);
+        Assert.False(File.Exists(paths.GetPointFilePath(savedPoint.Id)));
+        Assert.Empty(attachments.PendingAttachments);
+        Assert.Empty(attachments.Errors);
+    }
+
+    [Fact]
     public void DeleteKeepsFormAndAppliesErrorsOnFailure()
     {
         var editor = new PointEditorViewModel();
@@ -366,6 +519,37 @@ public sealed class PointEditorViewModelTests
         Assert.True(deleted);
         Assert.Empty(editor.Form!.Files);
         Assert.False(editor.HasUnsavedChanges);
+        Assert.Empty(attachments.Errors);
+    }
+
+    [Fact]
+    public void DeleteSavedAttachmentWithServiceDeletesFileAndUpdatesPoint()
+    {
+        using var temp = TempDirectory.Create();
+        var fileLibrary = new FileLibraryService();
+        var paths = fileLibrary.EnsureLibrary(temp.Path);
+        var storedName = "guide__11111111111111111111111111111111.pdf";
+        var storedPath = Path.Combine(paths.FilesPath, storedName);
+        File.WriteAllText(storedPath, "guide");
+        var point = CreatePoint("Saved");
+        point.Files.Add(storedName);
+        fileLibrary.SavePoint(paths, point);
+        var editor = new PointEditorViewModel();
+        var attachments = new AttachmentDraftState();
+        editor.OpenExisting(point);
+        var item = new AttachmentDisplayItem(
+            AttachmentKind.File,
+            "guide.pdf",
+            storedPath,
+            storedName,
+            IsPending: false);
+
+        var deleted = editor.DeleteSavedAttachment(item, attachments, paths, new AttachmentDeleteService());
+
+        Assert.True(deleted);
+        Assert.Empty(editor.Form!.Files);
+        Assert.False(editor.HasUnsavedChanges);
+        Assert.False(File.Exists(storedPath));
         Assert.Empty(attachments.Errors);
     }
 
@@ -445,4 +629,26 @@ public sealed class PointEditorViewModelTests
             CollectionIds = collectionIds.ToList(),
             PrimaryCollectionId = primaryCollectionId == Guid.Empty ? null : primaryCollectionId,
         };
+
+    private sealed class TempDirectory : IDisposable
+    {
+        private TempDirectory(string path)
+        {
+            Path = path;
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public static TempDirectory Create() =>
+            new(System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
+    }
 }

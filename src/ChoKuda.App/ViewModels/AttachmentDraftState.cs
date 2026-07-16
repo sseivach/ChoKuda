@@ -39,6 +39,29 @@ public sealed class AttachmentDraftState
         }
     }
 
+    public AttachmentStageResult StageFiles(
+        IEnumerable<string> filePaths,
+        Func<string, bool> fileExists,
+        Func<string, AttachmentKind> classify)
+    {
+        ClearErrors();
+        var existingFilePaths = filePaths
+            .Where(fileExists)
+            .ToArray();
+
+        if (existingFilePaths.Length == 0)
+        {
+            return new AttachmentStageResult(0, 0);
+        }
+
+        var pendingCountBefore = _pendingAttachments.Count;
+        AddFiles(existingFilePaths, classify);
+
+        return new AttachmentStageResult(
+            existingFilePaths.Length,
+            _pendingAttachments.Count - pendingCountBefore);
+    }
+
     public void ClearPending()
     {
         _pendingAttachments.Clear();

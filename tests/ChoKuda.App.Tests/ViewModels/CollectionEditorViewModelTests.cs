@@ -20,6 +20,25 @@ public sealed class CollectionEditorViewModelTests
     }
 
     [Fact]
+    public void OpenNewWithServiceCreatesDefaultDraftAndClearsErrors()
+    {
+        var editor = new CollectionEditorViewModel();
+        editor.OpenNew(CreateCollection(""));
+        editor.Save(_ => CollectionSaveResult.Failure(
+            [new CollectionSaveError(CollectionService.NameFieldName, "Name is required.")]));
+        editor.IconSearch = "water";
+
+        editor.OpenNew(new CollectionService());
+
+        Assert.True(editor.IsNew);
+        Assert.True(editor.HasUnsavedChanges);
+        Assert.Equal("New collection", editor.Form?.Name);
+        Assert.Equal(CollectionService.DefaultIconId, editor.Form?.IconId);
+        Assert.Null(editor.NameError);
+        Assert.Equal(string.Empty, editor.IconSearch);
+    }
+
+    [Fact]
     public void OpenExistingIsCleanUntilFormChanges()
     {
         var editor = new CollectionEditorViewModel();
@@ -31,6 +50,38 @@ public sealed class CollectionEditorViewModelTests
         editor.Form!.Name = "Changed";
 
         Assert.True(editor.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void OpenExistingByIdUsesCollectionListAndClearsErrors()
+    {
+        var editor = new CollectionEditorViewModel();
+        var saved = CreateCollection("Saved");
+        editor.OpenNew(CreateCollection(""));
+        editor.Save(_ => CollectionSaveResult.Failure(
+            [new CollectionSaveError(CollectionService.NameFieldName, "Name is required.")]));
+
+        var opened = editor.OpenExisting(saved.Id, [saved]);
+
+        Assert.True(opened);
+        Assert.False(editor.IsNew);
+        Assert.False(editor.HasUnsavedChanges);
+        Assert.Equal(saved.Id, editor.Form?.Id);
+        Assert.Equal(saved.IconId, editor.IconSearch);
+        Assert.Null(editor.NameError);
+    }
+
+    [Fact]
+    public void OpenExistingByIdReturnsFalseAndKeepsCurrentFormWhenCollectionIsMissing()
+    {
+        var editor = new CollectionEditorViewModel();
+        editor.OpenExisting(CreateCollection("Current"));
+
+        var opened = editor.OpenExisting(Guid.NewGuid(), []);
+
+        Assert.False(opened);
+        Assert.Equal("Current", editor.Form?.Name);
+        Assert.False(editor.IsNew);
     }
 
     [Fact]
@@ -101,6 +152,44 @@ public sealed class CollectionEditorViewModelTests
     }
 
     [Fact]
+    public void SaveWithCollectionServiceCreatesNewCollection()
+    {
+        using var temp = TempDirectory.Create();
+        var paths = new FileLibraryService().EnsureLibrary(temp.Path);
+        var editor = new CollectionEditorViewModel();
+        editor.OpenNew(CreateCollection("  Arizona  "));
+
+        var result = editor.Save(paths, new CollectionService(), []);
+
+        Assert.NotNull(result);
+        Assert.NotEqual(Guid.Empty, result.Id);
+        Assert.Equal("Arizona", result.Name);
+        Assert.False(editor.IsNew);
+        Assert.False(editor.HasUnsavedChanges);
+        Assert.True(File.Exists(paths.GetCollectionFilePath(result.Id)));
+    }
+
+    [Fact]
+    public void SaveWithCollectionServiceUpdatesExistingCollection()
+    {
+        using var temp = TempDirectory.Create();
+        var paths = new FileLibraryService().EnsureLibrary(temp.Path);
+        var collectionService = new CollectionService();
+        var savedCollection = collectionService.CreateCollection(paths, CreateCollection("Arizona"), []).Collection!;
+        var editor = new CollectionEditorViewModel();
+        editor.OpenExisting(savedCollection);
+        editor.Form!.Name = "  Mexico  ";
+
+        var result = editor.Save(paths, collectionService, [savedCollection]);
+
+        Assert.NotNull(result);
+        Assert.Equal(savedCollection.Id, result.Id);
+        Assert.Equal("Mexico", result.Name);
+        Assert.False(editor.IsNew);
+        Assert.False(editor.HasUnsavedChanges);
+    }
+
+    [Fact]
     public void SaveAppliesFieldErrorsOnFailure()
     {
         var editor = new CollectionEditorViewModel();
@@ -135,6 +224,23 @@ public sealed class CollectionEditorViewModelTests
         Assert.True(deleted);
         Assert.Null(editor.Form);
         Assert.False(editor.IsNew);
+    }
+
+    [Fact]
+    public void DeleteWithCollectionServiceDeletesSavedCollection()
+    {
+        using var temp = TempDirectory.Create();
+        var paths = new FileLibraryService().EnsureLibrary(temp.Path);
+        var collectionService = new CollectionService();
+        var savedCollection = collectionService.CreateCollection(paths, CreateCollection("Arizona"), []).Collection!;
+        var editor = new CollectionEditorViewModel();
+        editor.OpenExisting(savedCollection);
+
+        var deleted = editor.Delete(paths, collectionService);
+
+        Assert.True(deleted);
+        Assert.Null(editor.Form);
+        Assert.False(File.Exists(paths.GetCollectionFilePath(savedCollection.Id)));
     }
 
     [Fact]
@@ -175,4 +281,26 @@ public sealed class CollectionEditorViewModelTests
             Color = "#3366ff",
             DescriptionText = "Description",
         };
+
+    private sealed class TempDirectory : IDisposable
+    {
+        private TempDirectory(string path)
+        {
+            Path = path;
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public static TempDirectory Create() =>
+            new(System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
+    }
 }
