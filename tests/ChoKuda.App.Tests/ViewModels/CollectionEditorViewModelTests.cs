@@ -67,7 +67,7 @@ public sealed class CollectionEditorViewModelTests
         Assert.False(editor.IsNew);
         Assert.False(editor.HasUnsavedChanges);
         Assert.Equal(saved.Id, editor.Form?.Id);
-        Assert.Equal(saved.IconId, editor.IconSearch);
+        Assert.Equal(string.Empty, editor.IconSearch);
         Assert.Null(editor.NameError);
     }
 
@@ -85,16 +85,17 @@ public sealed class CollectionEditorViewModelTests
     }
 
     [Fact]
-    public void SelectIconUpdatesFormAndSearchText()
+    public void SelectIconUpdatesFormAndKeepsSearchText()
     {
         var editor = new CollectionEditorViewModel();
         editor.OpenExisting(CreateCollection("Saved"));
+        editor.IconSearch = "sun";
 
         editor.SelectIcon("sun-fill");
 
         Assert.True(editor.IsIconSelected("sun-fill"));
         Assert.Equal("sun-fill", editor.Form?.IconId);
-        Assert.Equal("sun-fill", editor.IconSearch);
+        Assert.Equal("sun", editor.IconSearch);
     }
 
     [Fact]

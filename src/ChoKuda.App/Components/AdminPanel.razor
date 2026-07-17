@@ -1,0 +1,178 @@
+@namespace ChoKuda.App.Components
+
+@if (IsOpen)
+{
+    <div class="admin-modal">
+        <button type="button"
+                class="admin-modal-backdrop"
+                title="Close"
+                aria-label="Close admin panel"
+                @onclick="OnClose">
+        </button>
+        <section class="admin-modal-content"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-label="Admin panel">
+            <header class="admin-modal-header">
+                <div>
+                    <h2>Admin</h2>
+                    <p>Local library, settings, and loaded data state.</p>
+                </div>
+                <button type="button"
+                        class="photo-viewer-icon-button"
+                        title="Close"
+                        aria-label="Close admin panel"
+                        @onclick="OnClose">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </header>
+
+            <div class="admin-modal-body">
+                <section class="admin-section">
+                    <div class="admin-section-header">
+                        <h3>Storage</h3>
+                        <div class="admin-actions">
+                            <button type="button" @onclick="OnOpenLibraryFolder">Open library</button>
+                            <button type="button" @onclick="OnOpenAppSettingsFolder">Open settings</button>
+                        </div>
+                    </div>
+                    <dl class="admin-details">
+                        <dt>Library state</dt>
+                        <dd>@LibraryState</dd>
+                        <dt>Current library</dt>
+                        <dd><code>@DisplayPath(LibraryPath)</code></dd>
+                        <dt>App settings file</dt>
+                        <dd><code>@DisplayPath(AppSettingsFilePath)</code></dd>
+                    </dl>
+                </section>
+
+                <section class="admin-section">
+                    <div class="admin-section-header">
+                        <h3>Library folders</h3>
+                        <div class="admin-actions">
+                            <button type="button" @onclick="OnOpenPhotosFolder" disabled="@IsLibraryUnavailable">Open photos</button>
+                            <button type="button" @onclick="OnOpenFilesFolder" disabled="@IsLibraryUnavailable">Open files</button>
+                        </div>
+                    </div>
+                    <dl class="admin-details">
+                        <dt>Points</dt>
+                        <dd><code>@DisplayPath(LibraryPaths?.PointsPath)</code></dd>
+                        <dt>Collections</dt>
+                        <dd><code>@DisplayPath(LibraryPaths?.CollectionsPath)</code></dd>
+                        <dt>Photos</dt>
+                        <dd><code>@DisplayPath(LibraryPaths?.PhotosPath)</code></dd>
+                        <dt>Files</dt>
+                        <dd><code>@DisplayPath(LibraryPaths?.FilesPath)</code></dd>
+                    </dl>
+                </section>
+
+                <section class="admin-section">
+                    <div class="admin-section-header">
+                        <h3>Loaded data</h3>
+                        <div class="admin-actions">
+                            <button type="button" @onclick="OnReloadLibrary" disabled="@IsLibraryUnavailable">Reload library</button>
+                        </div>
+                    </div>
+                    <div class="admin-stat-grid">
+                        <div><strong>@PointCount</strong><span>points</span></div>
+                        <div><strong>@CollectionCount</strong><span>collections</span></div>
+                        <div><strong>@TagCount</strong><span>tags</span></div>
+                        <div><strong>@PhotoReferenceCount</strong><span>photo refs</span></div>
+                        <div><strong>@FileReferenceCount</strong><span>file refs</span></div>
+                        <div class="@JsonErrorClass"><strong>@JsonErrorCount</strong><span>JSON errors</span></div>
+                    </div>
+                </section>
+
+                <section class="admin-section">
+                    <div class="admin-section-header">
+                        <h3>Map</h3>
+                    </div>
+                    <dl class="admin-details">
+                        <dt>Provider</dt>
+                        <dd>Stadia Maps raster tiles</dd>
+                        <dt>Style</dt>
+                        <dd>@MapStyleName</dd>
+                        <dt>Large labels</dt>
+                        <dd>@(UseLargeMapLabels ? "enabled" : "disabled")</dd>
+                        <dt>API key</dt>
+                        <dd>@(HasStadiaApiKey ? "saved" : "not set")</dd>
+                    </dl>
+                </section>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool IsOpen { get; set; }
+
+    [Parameter]
+    public bool IsLibraryReady { get; set; }
+
+    [Parameter]
+    public string LibraryPath { get; set; } = string.Empty;
+
+    [Parameter]
+    public string AppSettingsFilePath { get; set; } = string.Empty;
+
+    [Parameter]
+    public FileLibraryPaths? LibraryPaths { get; set; }
+
+    [Parameter]
+    public int PointCount { get; set; }
+
+    [Parameter]
+    public int CollectionCount { get; set; }
+
+    [Parameter]
+    public int TagCount { get; set; }
+
+    [Parameter]
+    public int PhotoReferenceCount { get; set; }
+
+    [Parameter]
+    public int FileReferenceCount { get; set; }
+
+    [Parameter]
+    public int JsonErrorCount { get; set; }
+
+    [Parameter]
+    public string MapStyleName { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool UseLargeMapLabels { get; set; }
+
+    [Parameter]
+    public bool HasStadiaApiKey { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenLibraryFolder { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenAppSettingsFolder { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenPhotosFolder { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenFilesFolder { get; set; }
+
+    [Parameter]
+    public EventCallback OnReloadLibrary { get; set; }
+
+    private bool IsLibraryUnavailable =>
+        !IsLibraryReady;
+
+    private string LibraryState =>
+        IsLibraryReady ? "ready" : "not ready";
+
+    private string JsonErrorClass =>
+        JsonErrorCount > 0 ? "admin-stat-warning" : string.Empty;
+
+    private static string DisplayPath(string? path) =>
+        string.IsNullOrWhiteSpace(path) ? "not set" : path;
+}

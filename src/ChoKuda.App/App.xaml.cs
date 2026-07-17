@@ -33,6 +33,7 @@ public partial class App : System.Windows.Application
         services.AddSingleton<AttachmentDropService>();
         services.AddSingleton<IAttachmentFilePicker, WpfAttachmentFilePicker>();
         services.AddSingleton<IAttachmentOpener, WindowsAttachmentOpener>();
+        services.AddSingleton<IPathOpener, WindowsPathOpener>();
         services.AddSingleton<BootstrapIconCatalog>();
         services.AddSingleton<ILibraryFolderPicker, WpfLibraryFolderPicker>();
         services.AddSingleton<IApplicationShutdown, WpfApplicationShutdown>();

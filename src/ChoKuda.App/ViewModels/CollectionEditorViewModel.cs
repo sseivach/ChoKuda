@@ -69,7 +69,7 @@ public sealed class CollectionEditorViewModel
         Form = CloneCollection(collection);
         _savedSnapshot = CloneCollection(collection);
         IsNew = false;
-        IconSearch = collection.IconId;
+        IconSearch = string.Empty;
         ClearErrors();
     }
 
@@ -158,7 +158,6 @@ public sealed class CollectionEditorViewModel
         }
 
         Form.IconId = iconId;
-        IconSearch = iconId;
     }
 
     public bool IsIconSelected(string iconId) =>

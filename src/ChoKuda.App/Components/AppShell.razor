@@ -11,6 +11,7 @@
 @inject AttachmentDropService AttachmentDropService
 @inject IAttachmentFilePicker AttachmentFilePicker
 @inject IAttachmentOpener AttachmentOpener
+@inject IPathOpener PathOpener
 @inject BootstrapIconCatalog BootstrapIconCatalog
 @inject ILibraryFolderPicker LibraryFolderPicker
 @inject IApplicationShutdown ApplicationShutdown
@@ -20,7 +21,6 @@
     <LeftPanel ShellState="ShellState"
                Search="_search"
                Filters="_filters"
-               CollectionEditor="_collectionEditor"
                SearchResults="_data.SearchResults"
                Collections="_data.Collections"
                Tags="_data.TagIndex"
@@ -29,9 +29,6 @@
                OnSearchResultSelected="OpenSearchResult"
                OnNewCollection="NewCollection"
                OnEditCollection="EditCollection"
-               OnSaveCollection="SaveCollection"
-               OnCancelCollectionEdit="CancelCollectionEdit"
-               OnDeleteCollection="DeleteCollection"
                OnFilterChanged="ApplyFiltersAndMapProjection" />
 
     <MapWorkspace @ref="_mapWorkspace"
@@ -90,6 +87,11 @@
                  OnZoomOut="ZoomPhotoViewerOut"
                  OnResetZoom="ResetPhotoViewerZoom" />
 
+    <CollectionEditorModal Editor="_collectionEditor"
+                           OnSave="SaveCollection"
+                           OnCancel="CancelCollectionEdit"
+                           OnDelete="DeleteCollection" />
+
     <StatusBar VisiblePointCount="@_data.FilteredPoints.Count"
                TotalPointCount="@_data.AllPoints.Count"
                Message="@StatusMessage"
@@ -104,8 +106,30 @@
                OperationMessage="@_operation.Message"
                CanRetryOperation="@_operation.CanRetry"
                OnRetryOperation="RetryOperation"
+               OnOpenAdmin="OpenAdminPanel"
                AddPointDisabled="@IsAddPointDisabled"
                OnAddPoint="OpenNewPointPanel" />
+
+    <AdminPanel IsOpen="@_isAdminPanelOpen"
+                IsLibraryReady="@IsLibraryReady"
+                LibraryPath="@CurrentLibraryPath"
+                AppSettingsFilePath="@EnvironmentPaths.AppSettingsFilePath"
+                LibraryPaths="@CurrentLibraryPaths"
+                PointCount="@_data.AllPoints.Count"
+                CollectionCount="@_data.Collections.Count"
+                TagCount="@_data.TagIndex.Count"
+                PhotoReferenceCount="@PhotoReferenceCount"
+                FileReferenceCount="@FileReferenceCount"
+                JsonErrorCount="@_library.LoadErrors.Count"
+                MapStyleName="@SelectedMapStyle.DisplayName"
+                UseLargeMapLabels="@_appSettings.UseLargeMapLabels"
+                HasStadiaApiKey="@HasStadiaApiKey"
+                OnClose="CloseAdminPanel"
+                OnOpenLibraryFolder="OpenLibraryFolder"
+                OnOpenAppSettingsFolder="OpenAppSettingsFolder"
+                OnOpenPhotosFolder="OpenPhotosFolder"
+                OnOpenFilesFolder="OpenFilesFolder"
+                OnReloadLibrary="ReloadLibraryFromAdmin" />
 </main>
 
 @code {
@@ -120,6 +144,7 @@
     private readonly LibraryViewModel _library = new();
     private readonly UiOperationViewModel _operation = new();
     private string _stadiaApiKeyInput = string.Empty;
+    private bool _isAdminPanelOpen;
 
     private CollectionDocument? _collectionForm =>
         _collectionEditor.Form;
@@ -138,6 +163,12 @@
 
     private string DefaultLibraryPath => EnvironmentPaths.DefaultLibraryPath;
 
+    private string CurrentLibraryPath =>
+        _library.Path ?? _appSettings.LibraryPath ?? string.Empty;
+
+    private FileLibraryPaths? CurrentLibraryPaths =>
+        GetCurrentLibraryPaths();
+
     private IReadOnlyList<StadiaMapStyle> MapStyleOptions =>
         StadiaMapStyles.All;
 
@@ -149,6 +180,15 @@
 
     private string StadiaApiKey =>
         _appSettings.StadiaApiKey ?? string.Empty;
+
+    private int PhotoReferenceCount =>
+        _data.AllPoints.Sum(point => point.Photos.Count);
+
+    private int FileReferenceCount =>
+        _data.AllPoints.Sum(point => point.Files.Count);
+
+    private string AppSettingsFolderPath =>
+        Path.GetDirectoryName(EnvironmentPaths.AppSettingsFilePath) ?? EnvironmentPaths.AppDataPath;
 
     private bool IsAddPointDisabled =>
         !_pointEditor.CanOpenNewPoint(IsLibraryReady, ShellState.IsRightPanelOpen);
@@ -561,6 +601,7 @@
         }
 
         ReloadLibraryDataAndSetSuccess("Collection saved.");
+        _collectionEditor.Clear();
 
         await InvokeAsync(StateHasChanged);
     }
@@ -647,6 +688,57 @@
                 await InvokeAsync(StateHasChanged);
                 break;
         }
+    }
+
+    private void OpenAdminPanel()
+    {
+        _isAdminPanelOpen = true;
+    }
+
+    private void CloseAdminPanel()
+    {
+        _isAdminPanelOpen = false;
+    }
+
+    private void OpenLibraryFolder()
+    {
+        OpenPath(CurrentLibraryPath, "Library folder opened.", "Library folder could not be opened.");
+    }
+
+    private void OpenAppSettingsFolder()
+    {
+        OpenPath(AppSettingsFolderPath, "App settings folder opened.", "App settings folder could not be opened.");
+    }
+
+    private void OpenPhotosFolder()
+    {
+        var paths = GetCurrentLibraryPaths();
+        OpenPath(paths?.PhotosPath ?? string.Empty, "Photos folder opened.", "Photos folder could not be opened.");
+    }
+
+    private void OpenFilesFolder()
+    {
+        var paths = GetCurrentLibraryPaths();
+        OpenPath(paths?.FilesPath ?? string.Empty, "Files folder opened.", "Files folder could not be opened.");
+    }
+
+    private async Task ReloadLibraryFromAdmin()
+    {
+        await StartOperation("Reloading library...");
+        ReloadLibraryDataAndSetSuccess("Library reloaded.");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OpenPath(string path, string successMessage, string failureMessage)
+    {
+        var error = PathOpener.Open(path);
+        if (error is null)
+        {
+            _operation.SetSuccess(successMessage);
+            return;
+        }
+
+        _operation.SetError($"{failureMessage} Reason: {error}");
     }
 
     private async Task StartOperation(string message)

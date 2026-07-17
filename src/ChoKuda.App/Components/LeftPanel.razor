@@ -21,14 +21,10 @@ else
                      OnReset="OnResetSearch"
                      OnResultSelected="OnSearchResultSelected" />
 
-        <CollectionsPanel Editor="CollectionEditor"
-                          Filters="Filters"
+        <CollectionsPanel Filters="Filters"
                           Collections="Collections"
                           OnNewCollection="OnNewCollection"
                           OnEditCollection="OnEditCollection"
-                          OnSaveCollection="OnSaveCollection"
-                          OnCancelCollectionEdit="OnCancelCollectionEdit"
-                          OnDeleteCollection="OnDeleteCollection"
                           OnFilterChanged="OnFilterChanged" />
 
         <TagsPanel Filters="Filters"
@@ -46,9 +42,6 @@ else
 
     [Parameter, EditorRequired]
     public FilterViewModel Filters { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public CollectionEditorViewModel CollectionEditor { get; set; } = null!;
 
     [Parameter]
     public IEnumerable<PointDocument> SearchResults { get; set; } = Array.Empty<PointDocument>();
@@ -73,15 +66,6 @@ else
 
     [Parameter]
     public EventCallback<Guid> OnEditCollection { get; set; }
-
-    [Parameter]
-    public EventCallback OnSaveCollection { get; set; }
-
-    [Parameter]
-    public EventCallback OnCancelCollectionEdit { get; set; }
-
-    [Parameter]
-    public EventCallback OnDeleteCollection { get; set; }
 
     [Parameter]
     public EventCallback OnFilterChanged { get; set; }

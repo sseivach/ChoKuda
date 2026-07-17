@@ -1,0 +1,123 @@
+@namespace ChoKuda.App.Components
+
+@if (Editor.Form is { } form)
+{
+    <div class="collection-modal">
+        <button type="button"
+                class="collection-modal-backdrop"
+                title="Close"
+                aria-label="Close collection editor"
+                @onclick="OnCancel">
+        </button>
+        <section class="collection-modal-content"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-label="@Title">
+            <header class="collection-modal-header">
+                <div>
+                    <h2>@Title</h2>
+                    <p>Collection style controls the pin icon and color on the map.</p>
+                </div>
+                <button type="button"
+                        class="photo-viewer-icon-button"
+                        title="Close"
+                        aria-label="Close collection editor"
+                        @onclick="OnCancel">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </header>
+
+            <div class="collection-modal-body">
+                <label>
+                    Name
+                    <input @bind="form.Name" />
+                </label>
+                <UiFieldError Message="@Editor.NameError" />
+
+                <div class="selected-icon-preview">
+                    <span class="collection-style selected-icon-swatch" style="background:@form.Color">
+                        <i class="bi bi-@IconOrDefault(form.IconId)"></i>
+                    </span>
+                    <div>
+                        <span>Selected icon</span>
+                        <code>@IconOrDefault(form.IconId)</code>
+                    </div>
+                </div>
+
+                <label>
+                    Icon search
+                    <input @bind="Editor.IconSearch" @bind:event="oninput" placeholder="Search icon name" />
+                </label>
+                <div class="icon-grid collection-modal-icon-grid">
+                    @foreach (var iconId in Editor.FilteredIconIds)
+                    {
+                        <button type="button"
+                                class="@Editor.IconChoiceClass(iconId)"
+                                title="@iconId"
+                                @onclick="() => Editor.SelectIcon(iconId)">
+                            <i class="bi bi-@iconId"></i>
+                        </button>
+                    }
+                </div>
+
+                <label>
+                    Color
+                    <span class="color-row">
+                        <input type="color" @bind="form.Color" />
+                        <code>@form.Color</code>
+                    </span>
+                </label>
+                <UiFieldError Message="@Editor.ColorError" />
+
+                <label>
+                    Description
+                    <textarea class="compact-textarea" @bind="form.DescriptionText"></textarea>
+                </label>
+
+                <UiErrorPanel Title="Collection could not be saved"
+                              Description="ChoKuda kept the collection form open so you can fix the problem and try again."
+                              Messages="GeneralErrors"
+                              Action="Check the collection details, then click Save again." />
+
+                <UiErrorPanel Title="Collection could not be deleted"
+                              Description="The collection was not removed."
+                              Messages="Editor.DeleteErrors"
+                              Action="Close programs using ChoKuda files, repair broken JSON if mentioned, then try deleting again." />
+            </div>
+
+            <footer class="collection-modal-actions">
+                <button @onclick="OnSave">Save</button>
+                <button @onclick="OnCancel">Cancel</button>
+                @if (!Editor.IsNew)
+                {
+                    <button class="danger-button" @onclick="OnDelete">Delete</button>
+                }
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public CollectionEditorViewModel Editor { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    [Parameter]
+    public EventCallback OnDelete { get; set; }
+
+    private string Title =>
+        Editor.IsNew ? "New collection" : "Edit collection";
+
+    private IReadOnlyList<string> GeneralErrors =>
+        string.IsNullOrWhiteSpace(Editor.GeneralError)
+            ? Array.Empty<string>()
+            : [Editor.GeneralError];
+
+    private static string IconOrDefault(string iconId) =>
+        string.IsNullOrWhiteSpace(iconId) ? "geo-alt-fill" : iconId;
+}

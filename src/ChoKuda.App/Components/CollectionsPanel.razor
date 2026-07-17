@@ -4,65 +4,6 @@
         <button class="compact-button" @onclick="OnNewCollection">+ Collection</button>
     </div>
 
-    @if (Editor.Form is { } form)
-    {
-        <div class="inline-form">
-            <label>
-                Name
-                <input @bind="form.Name" />
-            </label>
-            <UiFieldError Message="@Editor.NameError" />
-
-            <label>
-                Icon
-                <input @bind="Editor.IconSearch" @bind:event="oninput" placeholder="Search icon name" />
-            </label>
-            <div class="icon-grid">
-                @foreach (var iconId in Editor.FilteredIconIds)
-                {
-                    <button class="@Editor.IconChoiceClass(iconId)"
-                            title="@iconId"
-                            @onclick="() => Editor.SelectIcon(iconId)">
-                        <i class="bi bi-@iconId"></i>
-                    </button>
-                }
-            </div>
-
-            <label>
-                Color
-                <span class="color-row">
-                    <input type="color" @bind="form.Color" />
-                    <code>@form.Color</code>
-                </span>
-            </label>
-            <UiFieldError Message="@Editor.ColorError" />
-
-            <label>
-                Description
-                <textarea class="compact-textarea" @bind="form.DescriptionText"></textarea>
-            </label>
-
-            <UiErrorPanel Title="Collection could not be saved"
-                          Description="ChoKuda kept the collection form open so you can fix the problem and try again."
-                          Messages="GeneralErrors"
-                          Action="Check the collection details, then click Save again." />
-
-            <UiErrorPanel Title="Collection could not be deleted"
-                          Description="The collection was not removed."
-                          Messages="Editor.DeleteErrors"
-                          Action="Close programs using ChoKuda files, repair broken JSON if mentioned, then try deleting again." />
-
-            <div class="panel-actions inline-actions">
-                <button @onclick="OnSaveCollection">Save</button>
-                <button @onclick="OnCancelCollectionEdit">Cancel</button>
-                @if (!Editor.IsNew)
-                {
-                    <button class="danger-button" @onclick="OnDeleteCollection">Delete</button>
-                }
-            </div>
-        </div>
-    }
-
     <div class="collection-list">
         @foreach (var collection in OrderedCollections)
         {
@@ -129,9 +70,6 @@
 
 @code {
     [Parameter, EditorRequired]
-    public CollectionEditorViewModel Editor { get; set; } = null!;
-
-    [Parameter, EditorRequired]
     public FilterViewModel Filters { get; set; } = null!;
 
     [Parameter]
@@ -144,24 +82,10 @@
     public EventCallback<Guid> OnEditCollection { get; set; }
 
     [Parameter]
-    public EventCallback OnSaveCollection { get; set; }
-
-    [Parameter]
-    public EventCallback OnCancelCollectionEdit { get; set; }
-
-    [Parameter]
-    public EventCallback OnDeleteCollection { get; set; }
-
-    [Parameter]
     public EventCallback OnFilterChanged { get; set; }
 
     private IEnumerable<CollectionDocument> OrderedCollections =>
         Collections.OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase);
-
-    private IReadOnlyList<string> GeneralErrors =>
-        string.IsNullOrWhiteSpace(Editor.GeneralError)
-            ? Array.Empty<string>()
-            : [Editor.GeneralError];
 
     private async Task ToggleCollectionFilter(Guid collectionId, bool isSelected)
     {
