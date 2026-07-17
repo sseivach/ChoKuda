@@ -6,6 +6,7 @@
             <MapView @ref="_mapView"
                      ApiKey="@StadiaApiKey"
                      MapStyle="@MapStyle"
+                     UseLargeLabels="@UseLargeMapLabels"
                      Points="@Points"
                      TemporaryMarker="@TemporaryMarker"
                      OnMapClick="OnMapClick"
@@ -17,8 +18,10 @@
             <SettingsPanel StadiaApiKeyInput="@StadiaApiKeyInput"
                            MapStyleOptions="@MapStyleOptions"
                            SelectedMapStyleId="@MapStyle.Id"
+                           UseLargeMapLabels="@UseLargeMapLabels"
                            OnStadiaApiKeyInputChanged="OnStadiaApiKeyInputChanged"
                            OnMapStyleChanged="OnMapStyleChanged"
+                           OnLargeMapLabelsChanged="OnLargeMapLabelsChanged"
                            OnSaveStadiaApiKey="OnSaveStadiaApiKey" />
         }
     }
@@ -63,6 +66,9 @@
     public IReadOnlyList<StadiaMapStyle> MapStyleOptions { get; set; } = Array.Empty<StadiaMapStyle>();
 
     [Parameter]
+    public bool UseLargeMapLabels { get; set; }
+
+    [Parameter]
     public IReadOnlyList<MapPoint> Points { get; set; } = Array.Empty<MapPoint>();
 
     [Parameter]
@@ -85,6 +91,9 @@
 
     [Parameter]
     public EventCallback<string> OnMapStyleChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnLargeMapLabelsChanged { get; set; }
 
     [Parameter]
     public EventCallback OnSaveStadiaApiKey { get; set; }

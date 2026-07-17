@@ -41,6 +41,7 @@
                   StadiaApiKeyInput="@_stadiaApiKeyInput"
                   MapStyle="@SelectedMapStyle"
                   MapStyleOptions="@MapStyleOptions"
+                  UseLargeMapLabels="@_appSettings.UseLargeMapLabels"
                   Points="@_data.MapPoints"
                   TemporaryMarker="@_pointEditor.SelectedCoordinate"
                   LibrarySetupTitle="@_library.SetupTitle"
@@ -49,6 +50,7 @@
                   DefaultLibraryPath="@DefaultLibraryPath"
                   OnStadiaApiKeyInputChanged="UpdateStadiaApiKeyInput"
                   OnMapStyleChanged="UpdateMapStyle"
+                  OnLargeMapLabelsChanged="UpdateLargeMapLabels"
                   OnSaveStadiaApiKey="SaveStadiaApiKey"
                   OnCreateDefaultLibrary="CreateDefaultLibrary"
                   OnChooseLibrary="ChooseLibrary"
@@ -94,8 +96,10 @@
                SelectedCoordinateStatus="@_pointEditor.SelectedCoordinateStatus"
                MapStyleOptions="@MapStyleOptions"
                SelectedMapStyleId="@SelectedMapStyle.Id"
+               UseLargeMapLabels="@_appSettings.UseLargeMapLabels"
                CanChangeMapStyle="@(IsLibraryReady && HasStadiaApiKey)"
                OnMapStyleChanged="UpdateMapStyle"
+               OnLargeMapLabelsChanged="UpdateLargeMapLabels"
                OperationStatus="@_operation.Status"
                OperationMessage="@_operation.Message"
                CanRetryOperation="@_operation.CanRetry"
@@ -340,6 +344,26 @@
         }
 
         _operation.SetSuccess($"Map style: {SelectedMapStyle.DisplayName}.");
+    }
+
+    private void UpdateLargeMapLabels(bool enabled)
+    {
+        if (_appSettings.UseLargeMapLabels == enabled)
+        {
+            return;
+        }
+
+        _operation.SetLoading("Saving map label setting...");
+        _appSettings.UseLargeMapLabels = enabled;
+
+        var result = LibraryCoordinator.SaveSettings(_appSettings);
+        if (!result.IsSuccess)
+        {
+            _operation.SetError($"Map label setting could not be saved. Reason: {result.ErrorMessage ?? "Unknown error."}");
+            return;
+        }
+
+        _operation.SetSuccess(enabled ? "Large map labels enabled." : "Large map labels disabled.");
     }
 
     private void HandleMapClick(MapCoordinate coordinate)

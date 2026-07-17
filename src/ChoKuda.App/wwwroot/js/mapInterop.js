@@ -1,6 +1,6 @@
 const maps = new Map();
 
-export function initMap(elementId, apiKey, tileStyle, dotNetReference) {
+export function initMap(elementId, apiKey, tileStyle, useLargeLabels, dotNetReference) {
     const element = document.getElementById(elementId);
 
     if (!element) {
@@ -13,7 +13,7 @@ export function initMap(elementId, apiKey, tileStyle, dotNetReference) {
         minZoom: 3,
     });
 
-    const tileLayer = createTileLayer(apiKey, tileStyle);
+    const tileLayer = createTileLayer(apiKey, tileStyle, useLargeLabels);
     setMapMaxZoom(map, tileStyle);
 
     tileLayer.addTo(map);
@@ -60,9 +60,9 @@ export function initMap(elementId, apiKey, tileStyle, dotNetReference) {
     });
 }
 
-export function setTileStyle(elementId, apiKey, tileStyle) {
+export function setTileStyle(elementId, apiKey, tileStyle, useLargeLabels) {
     const state = getMapState(elementId);
-    const tileLayer = createTileLayer(apiKey, tileStyle);
+    const tileLayer = createTileLayer(apiKey, tileStyle, useLargeLabels);
 
     if (state.tileLayer) {
         state.map.removeLayer(state.tileLayer);
@@ -162,16 +162,17 @@ function getMapState(elementId) {
     return state;
 }
 
-function createTileLayer(apiKey, tileStyle) {
+function createTileLayer(apiKey, tileStyle, useLargeLabels) {
     const safeStyle = tileStyle ?? {};
     const styleId = sanitizeStyleId(safeStyle.id || 'osm_bright');
     const extension = sanitizeExtension(safeStyle.extension || 'png');
-    const retinaPlaceholder = safeStyle.supportsRetina === false ? '' : '{r}';
+    const useRetinaTiles = safeStyle.supportsRetina !== false && useLargeLabels !== true;
+    const retinaPlaceholder = useRetinaTiles ? '{r}' : '';
     const tileUrl = `https://tiles.stadiamaps.com/tiles/${styleId}/{z}/{x}/{y}${retinaPlaceholder}.${extension}?api_key=${encodeURIComponent(apiKey)}`;
 
     return L.tileLayer(tileUrl, {
         maxZoom: getMaxZoom(safeStyle),
-        detectRetina: safeStyle.supportsRetina !== false,
+        detectRetina: useRetinaTiles,
         attribution: safeStyle.attributionHtml || defaultAttribution(),
     });
 }

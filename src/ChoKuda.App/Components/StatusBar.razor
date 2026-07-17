@@ -9,6 +9,12 @@
                             StyleOptions="@MapStyleOptions"
                             SelectedStyleId="@SelectedMapStyleId"
                             OnStyleChanged="OnMapStyleChanged" />
+            <label class="map-option-toggle status-map-toggle">
+                <input type="checkbox"
+                       checked="@UseLargeMapLabels"
+                       @onchange="UpdateLargeMapLabels" />
+                <span>Large labels</span>
+            </label>
         }
         <span class="@OperationStatusClass">@OperationStatus: @OperationMessage</span>
         @if (CanRetryOperation)
@@ -40,10 +46,16 @@
     public string SelectedMapStyleId { get; set; } = StadiaMapStyles.DefaultStyleId;
 
     [Parameter]
+    public bool UseLargeMapLabels { get; set; }
+
+    [Parameter]
     public bool CanChangeMapStyle { get; set; }
 
     [Parameter]
     public EventCallback<string> OnMapStyleChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnLargeMapLabelsChanged { get; set; }
 
     [Parameter]
     public UiOperationStatus OperationStatus { get; set; } = UiOperationStatus.Idle;
@@ -65,4 +77,9 @@
 
     private string OperationStatusClass =>
         $"operation-status {OperationStatus.ToString().ToLowerInvariant()}";
+
+    private async Task UpdateLargeMapLabels(ChangeEventArgs eventArgs)
+    {
+        await OnLargeMapLabelsChanged.InvokeAsync(eventArgs.Value is true);
+    }
 }

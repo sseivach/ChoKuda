@@ -8,6 +8,12 @@
                     StyleOptions="@MapStyleOptions"
                     SelectedStyleId="@SelectedMapStyleId"
                     OnStyleChanged="OnMapStyleChanged" />
+    <label class="map-option-toggle setup-map-toggle">
+        <input type="checkbox"
+               checked="@UseLargeMapLabels"
+               @onchange="UpdateLargeMapLabels" />
+        <span>Large labels</span>
+    </label>
     <div class="setup-actions">
         <button @onclick="OnSaveStadiaApiKey">Save API key</button>
     </div>
@@ -30,10 +36,21 @@
     public EventCallback<string> OnMapStyleChanged { get; set; }
 
     [Parameter]
+    public bool UseLargeMapLabels { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnLargeMapLabelsChanged { get; set; }
+
+    [Parameter]
     public EventCallback OnSaveStadiaApiKey { get; set; }
 
     private async Task UpdateStadiaApiKeyInput(ChangeEventArgs eventArgs)
     {
         await OnStadiaApiKeyInputChanged.InvokeAsync(eventArgs.Value?.ToString() ?? string.Empty);
+    }
+
+    private async Task UpdateLargeMapLabels(ChangeEventArgs eventArgs)
+    {
+        await OnLargeMapLabelsChanged.InvokeAsync(eventArgs.Value is true);
     }
 }

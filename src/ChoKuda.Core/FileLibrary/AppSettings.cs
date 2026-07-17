@@ -7,4 +7,6 @@ public sealed class AppSettings
     public string? StadiaApiKey { get; set; }
 
     public string? StadiaMapStyleId { get; set; }
+
+    public bool UseLargeMapLabels { get; set; }
 }

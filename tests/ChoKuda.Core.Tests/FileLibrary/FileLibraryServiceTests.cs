@@ -169,12 +169,14 @@ public sealed class FileLibraryServiceTests
                 LibraryPath = "library",
                 StadiaApiKey = "key",
                 StadiaMapStyleId = "stamen_toner_dark",
+                UseLargeMapLabels = true,
             });
 
             var loaded = service.LoadJson<AppSettings>("appsettings.json");
             Assert.Equal("library", loaded.LibraryPath);
             Assert.Equal("key", loaded.StadiaApiKey);
             Assert.Equal("stamen_toner_dark", loaded.StadiaMapStyleId);
+            Assert.True(loaded.UseLargeMapLabels);
         }
         finally
         {
@@ -210,6 +212,7 @@ public sealed class FileLibraryServiceTests
         Assert.Null(settings.LibraryPath);
         Assert.Null(settings.StadiaApiKey);
         Assert.Null(settings.StadiaMapStyleId);
+        Assert.False(settings.UseLargeMapLabels);
     }
 
     private static PointDocument CreatePoint()

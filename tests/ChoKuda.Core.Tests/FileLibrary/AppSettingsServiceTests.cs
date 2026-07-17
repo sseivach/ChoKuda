@@ -24,6 +24,7 @@ public sealed class AppSettingsServiceTests
         Assert.Null(settings.LibraryPath);
         Assert.Null(settings.StadiaApiKey);
         Assert.Null(settings.StadiaMapStyleId);
+        Assert.False(settings.UseLargeMapLabels);
     }
 
     [Fact]
@@ -39,6 +40,7 @@ public sealed class AppSettingsServiceTests
         Assert.Null(settings.LibraryPath);
         Assert.Null(settings.StadiaApiKey);
         Assert.Null(settings.StadiaMapStyleId);
+        Assert.False(settings.UseLargeMapLabels);
     }
 
     [Fact]
@@ -53,12 +55,14 @@ public sealed class AppSettingsServiceTests
             LibraryPath = @"C:\ChoKudaLibrary",
             StadiaApiKey = "stadia-key",
             StadiaMapStyleId = "outdoors",
+            UseLargeMapLabels = true,
         });
 
         var loaded = service.Load();
         Assert.Equal(@"C:\ChoKudaLibrary", loaded.LibraryPath);
         Assert.Equal("stadia-key", loaded.StadiaApiKey);
         Assert.Equal("outdoors", loaded.StadiaMapStyleId);
+        Assert.True(loaded.UseLargeMapLabels);
     }
 
     [Fact]
@@ -76,12 +80,14 @@ public sealed class AppSettingsServiceTests
                 LibraryPath = "library",
                 StadiaApiKey = "key",
                 StadiaMapStyleId = "stamen_terrain",
+                UseLargeMapLabels = true,
             });
 
             var loaded = service.Load();
             Assert.Equal("library", loaded.LibraryPath);
             Assert.Equal("key", loaded.StadiaApiKey);
             Assert.Equal("stamen_terrain", loaded.StadiaMapStyleId);
+            Assert.True(loaded.UseLargeMapLabels);
         }
         finally
         {
