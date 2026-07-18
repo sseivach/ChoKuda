@@ -39,17 +39,14 @@
                         <i class="bi bi-@IconOrDefault(form.IconId)"></i>
                     </span>
                     <div>
-                        <span>Selected icon</span>
-                        <code>@IconOrDefault(form.IconId)</code>
+                        <strong>Selected icon</strong>
+                        <span>Click another icon below to change it.</span>
                     </div>
                 </div>
 
-                <label>
-                    Icon search
-                    <input @bind="Editor.IconSearch" @bind:event="oninput" placeholder="Search icon name" />
-                </label>
+                <h3 class="collection-modal-subtitle">Choose icon</h3>
                 <div class="icon-grid collection-modal-icon-grid">
-                    @foreach (var iconId in Editor.FilteredIconIds)
+                    @foreach (var iconId in Editor.IconIds)
                     {
                         <button type="button"
                                 class="@Editor.IconChoiceClass(iconId)"

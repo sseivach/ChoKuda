@@ -2,8 +2,10 @@
     <h2>Search</h2>
     <div class="search-row">
         <input placeholder="Search places" @bind="Search.Input" @bind:event="oninput" />
-        <button disabled="@(!Search.CanRunSearch)" @onclick="OnSearch">Search</button>
-        <button disabled="@(!Search.IsActive)" @onclick="OnReset">Reset search</button>
+        <div class="search-actions">
+            <button disabled="@(!Search.CanRunSearch)" @onclick="OnSearch">Search</button>
+            <button disabled="@(!Search.IsActive)" @onclick="OnReset">Reset search</button>
+        </div>
     </div>
 </section>
 

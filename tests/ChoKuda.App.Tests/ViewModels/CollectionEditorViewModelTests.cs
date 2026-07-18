@@ -16,7 +16,6 @@ public sealed class CollectionEditorViewModelTests
         Assert.True(editor.IsNew);
         Assert.True(editor.HasUnsavedChanges);
         Assert.Equal("Draft", editor.Form?.Name);
-        Assert.Equal(string.Empty, editor.IconSearch);
     }
 
     [Fact]
@@ -26,7 +25,6 @@ public sealed class CollectionEditorViewModelTests
         editor.OpenNew(CreateCollection(""));
         editor.Save(_ => CollectionSaveResult.Failure(
             [new CollectionSaveError(CollectionService.NameFieldName, "Name is required.")]));
-        editor.IconSearch = "water";
 
         editor.OpenNew(new CollectionService());
 
@@ -35,7 +33,6 @@ public sealed class CollectionEditorViewModelTests
         Assert.Equal("New collection", editor.Form?.Name);
         Assert.Equal(CollectionService.DefaultIconId, editor.Form?.IconId);
         Assert.Null(editor.NameError);
-        Assert.Equal(string.Empty, editor.IconSearch);
     }
 
     [Fact]
@@ -67,7 +64,6 @@ public sealed class CollectionEditorViewModelTests
         Assert.False(editor.IsNew);
         Assert.False(editor.HasUnsavedChanges);
         Assert.Equal(saved.Id, editor.Form?.Id);
-        Assert.Equal(string.Empty, editor.IconSearch);
         Assert.Null(editor.NameError);
     }
 
@@ -85,44 +81,37 @@ public sealed class CollectionEditorViewModelTests
     }
 
     [Fact]
-    public void SelectIconUpdatesFormAndKeepsSearchText()
+    public void SelectIconUpdatesForm()
     {
         var editor = new CollectionEditorViewModel();
         editor.OpenExisting(CreateCollection("Saved"));
-        editor.IconSearch = "sun";
 
         editor.SelectIcon("sun-fill");
 
         Assert.True(editor.IsIconSelected("sun-fill"));
         Assert.Equal("sun-fill", editor.Form?.IconId);
-        Assert.Equal("sun", editor.IconSearch);
     }
 
     [Fact]
-    public void FilteredIconIdsUsesIconSearchAndLimitsResults()
+    public void IconIdsReturnsAvailableIconCatalog()
     {
-        var editor = new CollectionEditorViewModel
-        {
-            IconSearch = "fill",
-        };
+        var editor = new CollectionEditorViewModel();
 
-        var icons = editor.FilteredIconIds.ToArray();
+        var icons = editor.IconIds.ToArray();
 
         Assert.NotEmpty(icons);
-        Assert.True(icons.Length <= 48);
-        Assert.All(icons, icon => Assert.Contains("fill", icon, StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("geo-alt-fill", icons);
     }
 
     [Fact]
-    public void SetIconIdsUsesProvidedCatalogForSearch()
+    public void SetIconIdsUsesProvidedCatalogForPicker()
     {
         var editor = new CollectionEditorViewModel();
         editor.SetIconIds(["alpha", "waterfall", "zoom-in"]);
-        editor.IconSearch = "zoom";
 
-        var icons = editor.FilteredIconIds.ToArray();
+        var icons = editor.IconIds.ToArray();
 
-        Assert.Equal(["zoom-in"], icons);
+        Assert.Equal(["alpha", "waterfall", "zoom-in"], icons);
     }
 
     [Fact]

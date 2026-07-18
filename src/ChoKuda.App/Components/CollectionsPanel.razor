@@ -4,21 +4,9 @@
         <button class="compact-button" @onclick="OnNewCollection">+ Collection</button>
     </div>
 
-    <div class="collection-list">
-        @foreach (var collection in OrderedCollections)
-        {
-            <button class="collection-row" @onclick="() => OnEditCollection.InvokeAsync(collection.Id)">
-                <span class="collection-style" style="background:@collection.Color">
-                    <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
-                </span>
-                <span>@collection.Name</span>
-            </button>
-        }
-    </div>
-
-    <div class="filter-block">
+    <div class="filter-block collection-filter-block">
         <div class="filter-header">
-            <strong>Filter</strong>
+            <strong>Map filter</strong>
             <button class="compact-button" @onclick="ResetCollectionFilter">Reset collections</button>
         </div>
         <div class="segmented-control">
@@ -32,18 +20,39 @@
             </button>
         </div>
 
-        @foreach (var collection in OrderedCollections)
+        @if (Collections.Count == 0)
         {
-            <label class="check-row">
-                <input type="checkbox"
-                       checked="@Filters.SelectedCollectionIds.Contains(collection.Id)"
-                       @onchange="eventArgs => ToggleCollectionFilter(collection.Id, eventArgs.Value is true)" />
-                <span>@collection.Name</span>
-            </label>
+            <p class="muted">No collections yet.</p>
+        }
+        else
+        {
+            <div class="collection-filter-list">
+                @foreach (var collection in OrderedCollections)
+                {
+                    <div class="collection-filter-row">
+                        <label class="collection-filter-check">
+                            <input type="checkbox"
+                                   checked="@Filters.SelectedCollectionIds.Contains(collection.Id)"
+                                   @onchange="eventArgs => ToggleCollectionFilter(collection.Id, eventArgs.Value is true)" />
+                            <span class="collection-style small" style="background:@collection.Color">
+                                <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
+                            </span>
+                            <span>@collection.Name</span>
+                        </label>
+                        <button class="compact-icon-button"
+                                title="Edit collection"
+                                aria-label="@($"Edit collection {collection.Name}")"
+                                @onclick="() => OnEditCollection.InvokeAsync(collection.Id)">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </div>
+                }
+            </div>
         }
 
         @if (Filters.SelectedCollectionIds.Count > 0)
         {
+            <strong class="subsection-label">Pin priority</strong>
             <div class="drag-list">
                 @foreach (var collectionId in Filters.SelectedCollectionIds)
                 {

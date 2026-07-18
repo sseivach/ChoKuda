@@ -13,8 +13,6 @@ public sealed class CollectionEditorViewModel
 
     public bool IsNew { get; private set; }
 
-    public string IconSearch { get; set; } = string.Empty;
-
     public string? NameError { get; private set; }
 
     public string? ColorError { get; private set; }
@@ -27,10 +25,8 @@ public sealed class CollectionEditorViewModel
         Form is not null &&
         (IsNew || !CollectionDocumentsEqual(Form, _savedSnapshot));
 
-    public IEnumerable<string> FilteredIconIds =>
-        _bootstrapIconIds
-            .Where(iconId => string.IsNullOrWhiteSpace(IconSearch) || iconId.Contains(IconSearch.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Take(48);
+    public IReadOnlyList<string> IconIds =>
+        _bootstrapIconIds;
 
     public bool RequiresDiscardConfirmation =>
         HasUnsavedChanges;
@@ -55,7 +51,6 @@ public sealed class CollectionEditorViewModel
         Form = CloneCollection(draft);
         _savedSnapshot = null;
         IsNew = true;
-        IconSearch = string.Empty;
         ClearErrors();
     }
 
@@ -69,7 +64,6 @@ public sealed class CollectionEditorViewModel
         Form = CloneCollection(collection);
         _savedSnapshot = CloneCollection(collection);
         IsNew = false;
-        IconSearch = string.Empty;
         ClearErrors();
     }
 
@@ -146,7 +140,6 @@ public sealed class CollectionEditorViewModel
         Form = null;
         _savedSnapshot = null;
         IsNew = false;
-        IconSearch = string.Empty;
         ClearErrors();
     }
 
