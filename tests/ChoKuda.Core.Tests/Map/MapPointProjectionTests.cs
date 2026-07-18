@@ -26,6 +26,7 @@ public sealed class MapPointProjectionTests
         Assert.Equal(-112.697, mapPoint.Longitude);
         Assert.Equal(PointDefaults.DefaultPinIconId, mapPoint.PinIconId);
         Assert.Equal(PointDefaults.DefaultPinColor, mapPoint.PinColor);
+        Assert.Equal(PointDefaults.DefaultPinIconColor, mapPoint.PinIconColor);
     }
 
     [Fact]
@@ -41,12 +42,13 @@ public sealed class MapPointProjectionTests
             CollectionIds = [collectionId],
             PrimaryCollectionId = collectionId,
         };
-        var style = new CollectionMapStyle(collectionId, "camera-fill", "#d94a38");
+        var style = new CollectionMapStyle(collectionId, "camera-fill", "#d94a38", "#101010");
 
         var mapPoint = Assert.Single(MapPointProjection.FromPointDocuments([point], [style]));
 
         Assert.Equal("camera-fill", mapPoint.PinIconId);
         Assert.Equal("#d94a38", mapPoint.PinColor);
+        Assert.Equal("#101010", mapPoint.PinIconColor);
     }
 
     [Fact]
@@ -68,12 +70,13 @@ public sealed class MapPointProjectionTests
             [point],
             [
                 new CollectionMapStyle(arizonaId, "geo-alt-fill", "#d94a38"),
-                new CollectionMapStyle(summerId, "sun-fill", "#e0a21a"),
+                new CollectionMapStyle(summerId, "sun-fill", "#e0a21a", "#222222"),
             ],
             [summerId, arizonaId]));
 
         Assert.Equal("sun-fill", mapPoint.PinIconId);
         Assert.Equal("#e0a21a", mapPoint.PinColor);
+        Assert.Equal("#222222", mapPoint.PinIconColor);
     }
 
     [Fact]
@@ -102,6 +105,7 @@ public sealed class MapPointProjectionTests
 
         Assert.Equal("geo-alt-fill", mapPoint.PinIconId);
         Assert.Equal("#d94a38", mapPoint.PinColor);
+        Assert.Equal(PointDefaults.DefaultPinIconColor, mapPoint.PinIconColor);
     }
 
     [Fact]
@@ -120,6 +124,7 @@ public sealed class MapPointProjectionTests
 
         Assert.Equal(PointDefaults.DefaultPinIconId, mapPoint.PinIconId);
         Assert.Equal(PointDefaults.DefaultPinColor, mapPoint.PinColor);
+        Assert.Equal(PointDefaults.DefaultPinIconColor, mapPoint.PinIconColor);
     }
 
     [Fact]

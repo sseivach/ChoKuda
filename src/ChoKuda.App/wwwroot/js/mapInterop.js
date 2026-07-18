@@ -80,7 +80,7 @@ export function setPoints(elementId, points) {
 
     for (const point of points ?? []) {
         const marker = L.marker([point.latitude, point.longitude], {
-            icon: createPointIcon(point.pinIconId, point.pinColor),
+            icon: createPointIcon(point.pinIconId, point.pinColor, point.pinIconColor),
             title: point.title,
         });
 
@@ -205,17 +205,23 @@ function defaultAttribution() {
     return '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>';
 }
 
-function createPointIcon(iconId, color) {
+function createPointIcon(iconId, color, iconColor) {
     const safeIconId = (iconId || 'geo-alt-fill').replace(/[^a-z0-9-]/g, '');
-    const safeColor = color || '#2f75b5';
+    const safeColor = sanitizeHexColor(color, '#2f75b5');
+    const safeIconColor = sanitizeHexColor(iconColor, '#ffffff');
 
     return L.divIcon({
         className: 'chokuda-map-pin',
-        html: `<span style="--pin-color: ${safeColor}"><i class="bi bi-${safeIconId}"></i></span>`,
+        html: `<span style="--pin-color: ${safeColor}; --pin-icon-color: ${safeIconColor}"><i class="bi bi-${safeIconId}"></i></span>`,
         iconSize: [28, 36],
         iconAnchor: [14, 34],
         popupAnchor: [0, -30],
     });
+}
+
+function sanitizeHexColor(color, fallbackColor) {
+    const text = String(color || '').trim();
+    return /^#[0-9a-fA-F]{6}$/.test(text) ? text : fallbackColor;
 }
 
 function createTemporaryIcon() {

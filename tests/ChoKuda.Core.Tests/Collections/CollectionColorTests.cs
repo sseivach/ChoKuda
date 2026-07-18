@@ -4,6 +4,13 @@ namespace ChoKuda.Core.Tests.Collections;
 
 public sealed class CollectionColorTests
 {
+    [Fact]
+    public void DefaultsMatchCollectionStyleRules()
+    {
+        Assert.Equal("#2f75b5", CollectionColor.DefaultColor);
+        Assert.Equal("#ffffff", CollectionColor.DefaultIconColor);
+    }
+
     [Theory]
     [InlineData("#ABCDEF", "#abcdef")]
     [InlineData("#abcdef", "#abcdef")]

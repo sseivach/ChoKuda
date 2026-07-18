@@ -21,6 +21,20 @@
         {
             <button @onclick="OnRetryOperation">Retry</button>
         }
+        <span class="coordinate-setter">
+            <input class="coordinate-setter-input"
+                   placeholder="Lat, lon"
+                   title="Coordinates from Google Maps: latitude, longitude"
+                   value="@CoordinateInput"
+                   @oninput="UpdateCoordinateInput"
+                   @onkeydown="HandleCoordinateKeyDown" />
+            <button type="button"
+                    title="Set temporary marker from coordinates"
+                    disabled="@(!CanSetCoordinate)"
+                    @onclick="OnSetCoordinate">
+                Set
+            </button>
+        </span>
         <span class="muted">@SelectedCoordinateStatus</span>
         <button type="button" @onclick="OnOpenAdmin">Admin</button>
         <button disabled="@AddPointDisabled" @onclick="OnAddPoint">Add point</button>
@@ -39,6 +53,9 @@
 
     [Parameter]
     public string SelectedCoordinateStatus { get; set; } = string.Empty;
+
+    [Parameter]
+    public string CoordinateInput { get; set; } = string.Empty;
 
     [Parameter]
     public IReadOnlyList<StadiaMapStyle> MapStyleOptions { get; set; } = Array.Empty<StadiaMapStyle>();
@@ -68,10 +85,19 @@
     public bool CanRetryOperation { get; set; }
 
     [Parameter]
+    public bool CanSetCoordinate { get; set; }
+
+    [Parameter]
     public bool AddPointDisabled { get; set; }
 
     [Parameter]
     public EventCallback OnAddPoint { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnCoordinateInputChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnSetCoordinate { get; set; }
 
     [Parameter]
     public EventCallback OnRetryOperation { get; set; }
@@ -85,5 +111,18 @@
     private async Task UpdateLargeMapLabels(ChangeEventArgs eventArgs)
     {
         await OnLargeMapLabelsChanged.InvokeAsync(eventArgs.Value is true);
+    }
+
+    private async Task UpdateCoordinateInput(ChangeEventArgs eventArgs)
+    {
+        await OnCoordinateInputChanged.InvokeAsync(eventArgs.Value?.ToString() ?? string.Empty);
+    }
+
+    private async Task HandleCoordinateKeyDown(KeyboardEventArgs eventArgs)
+    {
+        if (eventArgs.Key == "Enter" && CanSetCoordinate)
+        {
+            await OnSetCoordinate.InvokeAsync();
+        }
     }
 }

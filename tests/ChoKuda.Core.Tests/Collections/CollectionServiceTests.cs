@@ -16,6 +16,7 @@ public sealed class CollectionServiceTests
         Assert.Equal("New collection", draft.Name);
         Assert.Equal(CollectionService.DefaultIconId, draft.IconId);
         Assert.Equal(CollectionColor.DefaultColor, draft.Color);
+        Assert.Equal(CollectionColor.DefaultIconColor, draft.IconColor);
     }
 
     [Fact]
@@ -40,6 +41,7 @@ public sealed class CollectionServiceTests
             Name = "  Arizona  ",
             IconId = "  camera-fill  ",
             Color = " #D94A38 ",
+            IconColor = " #FFFFFF ",
             DescriptionText = "  Winter ideas  ",
         };
 
@@ -52,6 +54,7 @@ public sealed class CollectionServiceTests
         Assert.Equal("Arizona", result.Collection.Name);
         Assert.Equal("camera-fill", result.Collection.IconId);
         Assert.Equal("#d94a38", result.Collection.Color);
+        Assert.Equal("#ffffff", result.Collection.IconColor);
         Assert.Equal("Winter ideas", result.Collection.DescriptionText);
         Assert.True(File.Exists(paths.GetCollectionFilePath(result.Collection.Id)));
     }
@@ -74,7 +77,24 @@ public sealed class CollectionServiceTests
     }
 
     [Fact]
-    public void CreateCollectionRejectsEmptyNameInvalidColorAndDuplicateName()
+    public void CreateCollectionUsesDefaultIconColorWhenIconColorIsEmpty()
+    {
+        using var temp = TempDirectory.Create();
+        var fileLibrary = new FileLibraryService();
+        var paths = fileLibrary.EnsureLibrary(temp.Path);
+        var service = CreateService(fileLibrary);
+        var draft = CreateValidCollection();
+        draft.IconColor = " ";
+
+        var result = service.CreateCollection(paths, draft, []);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Collection);
+        Assert.Equal(CollectionColor.DefaultIconColor, result.Collection.IconColor);
+    }
+
+    [Fact]
+    public void CreateCollectionRejectsEmptyNameInvalidColorsAndDuplicateName()
     {
         using var temp = TempDirectory.Create();
         var fileLibrary = new FileLibraryService();
@@ -87,6 +107,7 @@ public sealed class CollectionServiceTests
             Name = "  arizona  ",
             IconId = "geo-alt-fill",
             Color = "#bad",
+            IconColor = "#nope",
         };
 
         var result = service.CreateCollection(paths, draft, [existing]);
@@ -95,6 +116,7 @@ public sealed class CollectionServiceTests
         Assert.Null(result.Collection);
         Assert.Contains(result.Errors, error => error.FieldName == CollectionService.NameFieldName && error.Message == "Collection name already exists.");
         Assert.Contains(result.Errors, error => error.FieldName == CollectionService.ColorFieldName);
+        Assert.Contains(result.Errors, error => error.FieldName == CollectionService.IconColorFieldName);
         Assert.Empty(Directory.EnumerateFiles(paths.CollectionsPath));
     }
 
@@ -354,6 +376,7 @@ public sealed class CollectionServiceTests
             Name = "Arizona",
             IconId = "geo-alt-fill",
             Color = "#ff0000",
+            IconColor = "#ffffff",
             DescriptionText = "Ideas.",
         };
 

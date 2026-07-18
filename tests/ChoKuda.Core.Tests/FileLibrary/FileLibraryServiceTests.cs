@@ -97,12 +97,15 @@ public sealed class FileLibraryServiceTests
         Assert.Equal(collection.Name, loadedCollection.Name);
         Assert.Equal(collection.IconId, loadedCollection.IconId);
         Assert.Equal(collection.Color, loadedCollection.Color);
+        Assert.Equal(collection.IconColor, loadedCollection.IconColor);
         Assert.Equal(collection.DescriptionText, loadedCollection.DescriptionText);
 
         var json = File.ReadAllText(paths.GetCollectionFilePath(collection.Id));
         Assert.Contains("\"icon_id\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"icon_color\"", json, StringComparison.Ordinal);
         Assert.Contains("\"description\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("iconId", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("iconColor", json, StringComparison.Ordinal);
         Assert.DoesNotContain("descriptionText", json, StringComparison.Ordinal);
     }
 
@@ -207,6 +210,7 @@ public sealed class FileLibraryServiceTests
         Assert.Equal(string.Empty, collection.Name);
         Assert.Equal(string.Empty, collection.IconId);
         Assert.Equal(string.Empty, collection.Color);
+        Assert.Equal(string.Empty, collection.IconColor);
         Assert.Equal(string.Empty, collection.DescriptionText);
 
         Assert.Null(settings.LibraryPath);
@@ -242,6 +246,7 @@ public sealed class FileLibraryServiceTests
             Name = "Arizona",
             IconId = "circle",
             Color = "#ff0000",
+            IconColor = "#ffffff",
             DescriptionText = "Arizona ideas.",
         };
     }

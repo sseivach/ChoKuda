@@ -10,5 +10,6 @@ public sealed class PointDefaultsTests
         Assert.Equal("New point", PointDefaults.DefaultTitle);
         Assert.Equal("geo-alt-fill", PointDefaults.DefaultPinIconId);
         Assert.Equal("#2f75b5", PointDefaults.DefaultPinColor);
+        Assert.Equal("#ffffff", PointDefaults.DefaultPinIconColor);
     }
 }

@@ -35,7 +35,7 @@
                 <UiFieldError Message="@Editor.NameError" />
 
                 <div class="selected-icon-preview">
-                    <span class="collection-style selected-icon-swatch" style="background:@form.Color">
+                    <span class="collection-style selected-icon-swatch" style="background:@form.Color; color:@IconColorOrDefault(form.IconColor)">
                         <i class="bi bi-@IconOrDefault(form.IconId)"></i>
                     </span>
                     <div>
@@ -58,13 +58,22 @@
                 </div>
 
                 <label>
-                    Color
+                    Background color
                     <span class="color-row">
                         <input type="color" @bind="form.Color" />
                         <code>@form.Color</code>
                     </span>
                 </label>
                 <UiFieldError Message="@Editor.ColorError" />
+
+                <label>
+                    Icon color
+                    <span class="color-row">
+                        <input type="color" @bind="form.IconColor" />
+                        <code>@form.IconColor</code>
+                    </span>
+                </label>
+                <UiFieldError Message="@Editor.IconColorError" />
 
                 <label>
                     Description
@@ -117,4 +126,7 @@
 
     private static string IconOrDefault(string iconId) =>
         string.IsNullOrWhiteSpace(iconId) ? "geo-alt-fill" : iconId;
+
+    private static string IconColorOrDefault(string iconColor) =>
+        string.IsNullOrWhiteSpace(iconColor) ? "#ffffff" : iconColor;
 }

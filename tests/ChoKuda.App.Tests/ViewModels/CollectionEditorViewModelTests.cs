@@ -32,6 +32,7 @@ public sealed class CollectionEditorViewModelTests
         Assert.True(editor.HasUnsavedChanges);
         Assert.Equal("New collection", editor.Form?.Name);
         Assert.Equal(CollectionService.DefaultIconId, editor.Form?.IconId);
+        Assert.Equal(CollectionColor.DefaultIconColor, editor.Form?.IconColor);
         Assert.Null(editor.NameError);
     }
 
@@ -45,6 +46,23 @@ public sealed class CollectionEditorViewModelTests
         Assert.False(editor.HasUnsavedChanges);
 
         editor.Form!.Name = "Changed";
+
+        Assert.True(editor.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void OpenExistingDefaultsMissingIconColorWithoutMarkingFormDirty()
+    {
+        var editor = new CollectionEditorViewModel();
+        var collection = CreateCollection("Saved");
+        collection.IconColor = string.Empty;
+
+        editor.OpenExisting(collection);
+
+        Assert.Equal(CollectionColor.DefaultIconColor, editor.Form?.IconColor);
+        Assert.False(editor.HasUnsavedChanges);
+
+        editor.Form!.IconColor = "#101010";
 
         Assert.True(editor.HasUnsavedChanges);
     }
@@ -189,12 +207,14 @@ public sealed class CollectionEditorViewModelTests
             [
                 new CollectionSaveError(CollectionService.NameFieldName, "Name is required."),
                 new CollectionSaveError(CollectionService.ColorFieldName, "Color must use #rrggbb format."),
+                new CollectionSaveError(CollectionService.IconColorFieldName, "Icon color must use #rrggbb format."),
                 new CollectionSaveError(CollectionService.GeneralFieldName, "Collection id is required."),
             ]));
 
         Assert.Null(result);
         Assert.Equal("Name is required.", editor.NameError);
         Assert.Equal("Color must use #rrggbb format.", editor.ColorError);
+        Assert.Equal("Icon color must use #rrggbb format.", editor.IconColorError);
         Assert.Equal("Collection id is required.", editor.GeneralError);
     }
 
@@ -269,6 +289,7 @@ public sealed class CollectionEditorViewModelTests
             Name = name,
             IconId = "geo-alt-fill",
             Color = "#3366ff",
+            IconColor = "#ffffff",
             DescriptionText = "Description",
         };
 

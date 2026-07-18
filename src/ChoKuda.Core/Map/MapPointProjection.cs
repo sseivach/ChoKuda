@@ -25,7 +25,8 @@ public static class MapPointProjection
                     point.Latitude,
                     point.Longitude,
                     style.IconId,
-                    style.Color);
+                    style.Color,
+                    style.IconColor);
             })
             .ToArray();
     }
@@ -53,6 +54,7 @@ public static class MapPointProjection
         return new CollectionMapStyle(
             Guid.Empty,
             PointDefaults.DefaultPinIconId,
-            PointDefaults.DefaultPinColor);
+            PointDefaults.DefaultPinColor,
+            PointDefaults.DefaultPinIconColor);
     }
 }

@@ -7,6 +7,7 @@ public sealed class CollectionService
 {
     public const string NameFieldName = "name";
     public const string ColorFieldName = "color";
+    public const string IconColorFieldName = "icon_color";
     public const string GeneralFieldName = "general";
     public const string DefaultIconId = "geo-alt-fill";
 
@@ -32,6 +33,7 @@ public sealed class CollectionService
             Name = "New collection",
             IconId = DefaultIconId,
             Color = CollectionColor.DefaultColor,
+            IconColor = CollectionColor.DefaultIconColor,
         };
 
     public CollectionSaveResult CreateCollection(
@@ -149,6 +151,11 @@ public sealed class CollectionService
             errors.Add(new CollectionSaveError(ColorFieldName, "Color must use #rrggbb format."));
         }
 
+        if (CollectionColor.Normalize(collection.IconColor) is null)
+        {
+            errors.Add(new CollectionSaveError(IconColorFieldName, "Icon color must use #rrggbb format."));
+        }
+
         var normalizedName = NormalizeName(collection.Name);
         var hasDuplicate = existingCollections.Any(existing =>
             existing.Id != collection.Id &&
@@ -171,8 +178,19 @@ public sealed class CollectionService
                 ? DefaultIconId
                 : collection.IconId.Trim(),
             Color = CollectionColor.Normalize(collection.Color) ?? collection.Color.Trim().ToLowerInvariant(),
+            IconColor = NormalizeIconColor(collection.IconColor),
             DescriptionText = collection.DescriptionText.Trim(),
         };
+
+    private static string NormalizeIconColor(string iconColor)
+    {
+        if (string.IsNullOrWhiteSpace(iconColor))
+        {
+            return CollectionColor.DefaultIconColor;
+        }
+
+        return CollectionColor.Normalize(iconColor) ?? iconColor.Trim().ToLowerInvariant();
+    }
 
     private static IReadOnlyList<PointDocument> PreparePointUpdates(
         IEnumerable<PointDocument> points,

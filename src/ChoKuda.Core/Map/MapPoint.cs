@@ -6,5 +6,5 @@ public sealed record MapPoint(
     double Latitude,
     double Longitude,
     string PinIconId,
-    string PinColor);
-
+    string PinColor,
+    string PinIconColor);

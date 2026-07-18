@@ -65,7 +65,7 @@
                         <input type="checkbox"
                                checked="@Editor.IsInCollection(collection.Id)"
                                @onchange="eventArgs => TogglePointCollection(collection.Id, eventArgs.Value is true)" />
-                        <span class="collection-style small" style="background:@collection.Color">
+                        <span class="collection-style small" style="background:@collection.Color; color:@IconColorOrDefault(collection.IconColor)">
                             <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
                         </span>
                         <span>@collection.Name</span>
@@ -195,4 +195,9 @@
         string.IsNullOrWhiteSpace(iconId)
             ? PointDefaults.DefaultPinIconId
             : iconId;
+
+    private static string IconColorOrDefault(string iconColor) =>
+        string.IsNullOrWhiteSpace(iconColor)
+            ? PointDefaults.DefaultPinIconColor
+            : iconColor;
 }

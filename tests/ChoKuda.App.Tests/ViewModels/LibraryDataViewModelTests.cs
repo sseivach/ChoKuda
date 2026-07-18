@@ -34,6 +34,7 @@ public sealed class LibraryDataViewModelTests
         var mapPoint = Assert.Single(data.MapPoints);
         Assert.Equal("sun-fill", mapPoint.PinIconId);
         Assert.Equal("#ff0000", mapPoint.PinColor);
+        Assert.Equal("#ffffff", mapPoint.PinIconColor);
     }
 
     [Fact]
@@ -51,7 +52,7 @@ public sealed class LibraryDataViewModelTests
             [filteredPoint, matchingPoint],
             [
                 CreateCollection(primaryCollectionId, "Primary", "geo-alt-fill", "#111111"),
-                CreateCollection(priorityCollectionId, "Priority", "star-fill", "#222222"),
+                CreateCollection(priorityCollectionId, "Priority", "star-fill", "#222222", "#00ffcc"),
             ],
             search,
             filters);
@@ -65,6 +66,7 @@ public sealed class LibraryDataViewModelTests
         var mapPoint = Assert.Single(data.MapPoints);
         Assert.Equal("star-fill", mapPoint.PinIconId);
         Assert.Equal("#222222", mapPoint.PinColor);
+        Assert.Equal("#00ffcc", mapPoint.PinIconColor);
     }
 
     [Fact]
@@ -131,12 +133,14 @@ public sealed class LibraryDataViewModelTests
         Guid id,
         string name,
         string iconId,
-        string color) =>
+        string color,
+        string iconColor = "#ffffff") =>
         new()
         {
             Id = id,
             Name = name,
             IconId = iconId,
             Color = color,
+            IconColor = iconColor,
         };
 }

@@ -7,4 +7,6 @@ public static class PointDefaults
     public const string DefaultPinIconId = "geo-alt-fill";
 
     public const string DefaultPinColor = "#2f75b5";
+
+    public const string DefaultPinIconColor = "#ffffff";
 }

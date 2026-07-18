@@ -4,6 +4,8 @@ public static class CollectionColor
 {
     public const string DefaultColor = "#2f75b5";
 
+    public const string DefaultIconColor = "#ffffff";
+
     public static bool IsValid(string color) =>
         Normalize(color) is not null;
 

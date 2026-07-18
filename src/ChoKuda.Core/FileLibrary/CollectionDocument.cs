@@ -16,6 +16,9 @@ public sealed class CollectionDocument
     [JsonPropertyName("color")]
     public string Color { get; set; } = string.Empty;
 
+    [JsonPropertyName("icon_color")]
+    public string IconColor { get; set; } = string.Empty;
+
     [JsonPropertyName("description")]
     public string DescriptionText { get; set; } = string.Empty;
 }

@@ -17,6 +17,8 @@ public sealed class CollectionEditorViewModel
 
     public string? ColorError { get; private set; }
 
+    public string? IconColorError { get; private set; }
+
     public string? GeneralError { get; private set; }
 
     public IReadOnlyList<string> DeleteErrors { get; private set; } = Array.Empty<string>();
@@ -165,6 +167,7 @@ public sealed class CollectionEditorViewModel
     {
         NameError = null;
         ColorError = null;
+        IconColorError = null;
         GeneralError = null;
         DeleteErrors = Array.Empty<string>();
     }
@@ -180,6 +183,7 @@ public sealed class CollectionEditorViewModel
     {
         NameError = errors.FirstOrDefault(error => error.FieldName == CollectionService.NameFieldName)?.Message;
         ColorError = errors.FirstOrDefault(error => error.FieldName == CollectionService.ColorFieldName)?.Message;
+        IconColorError = errors.FirstOrDefault(error => error.FieldName == CollectionService.IconColorFieldName)?.Message;
         GeneralError = string.Join(
             " ",
             errors
@@ -194,6 +198,7 @@ public sealed class CollectionEditorViewModel
             Name = collection.Name,
             IconId = collection.IconId,
             Color = collection.Color,
+            IconColor = IconColorOrDefault(collection.IconColor),
             DescriptionText = collection.DescriptionText,
         };
 
@@ -203,5 +208,11 @@ public sealed class CollectionEditorViewModel
         collection.Name == other.Name &&
         collection.IconId == other.IconId &&
         collection.Color == other.Color &&
+        collection.IconColor == other.IconColor &&
         collection.DescriptionText == other.DescriptionText;
+
+    private static string IconColorOrDefault(string iconColor) =>
+        string.IsNullOrWhiteSpace(iconColor)
+            ? CollectionColor.DefaultIconColor
+            : iconColor;
 }

@@ -1,4 +1,5 @@
 using ChoKuda.Core.Domain;
+using ChoKuda.Core.Collections;
 using ChoKuda.Core.FileLibrary;
 using ChoKuda.Core.Filters;
 using ChoKuda.Core.Map;
@@ -58,7 +59,11 @@ public sealed class LibraryDataViewModel
         FilteredPoints = filters.Apply(searchedPoints);
         MapPoints = MapPointProjection.FromPointDocuments(
             FilteredPoints,
-            Collections.Select(collection => new CollectionMapStyle(collection.Id, IconOrDefault(collection.IconId), collection.Color)),
+            Collections.Select(collection => new CollectionMapStyle(
+                collection.Id,
+                IconOrDefault(collection.IconId),
+                collection.Color,
+                IconColorOrDefault(collection.IconColor))),
             filters.SelectedCollectionIds);
     }
 
@@ -72,4 +77,9 @@ public sealed class LibraryDataViewModel
         string.IsNullOrWhiteSpace(iconId)
             ? PointDefaults.DefaultPinIconId
             : iconId;
+
+    private static string IconColorOrDefault(string iconColor) =>
+        string.IsNullOrWhiteSpace(iconColor)
+            ? CollectionColor.DefaultIconColor
+            : iconColor;
 }

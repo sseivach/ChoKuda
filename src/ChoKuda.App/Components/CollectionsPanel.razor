@@ -34,7 +34,7 @@
                             <input type="checkbox"
                                    checked="@Filters.SelectedCollectionIds.Contains(collection.Id)"
                                    @onchange="eventArgs => ToggleCollectionFilter(collection.Id, eventArgs.Value is true)" />
-                            <span class="collection-style small" style="background:@collection.Color">
+                            <span class="collection-style small" style="background:@collection.Color; color:@IconColorOrDefault(collection.IconColor)">
                                 <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
                             </span>
                             <span>@collection.Name</span>
@@ -65,7 +65,7 @@
                              @ondragover:preventDefault="true"
                              @ondrop="() => DropCollectionFilter(collectionId)">
                             <i class="bi bi-grip-vertical"></i>
-                            <span class="collection-style small" style="background:@collection.Color">
+                            <span class="collection-style small" style="background:@collection.Color; color:@IconColorOrDefault(collection.IconColor)">
                                 <i class="bi bi-@IconOrDefault(collection.IconId)"></i>
                             </span>
                             <span>@collection.Name</span>
@@ -130,4 +130,7 @@
 
     private static string IconOrDefault(string iconId) =>
         string.IsNullOrWhiteSpace(iconId) ? "geo-alt-fill" : iconId;
+
+    private static string IconColorOrDefault(string iconColor) =>
+        string.IsNullOrWhiteSpace(iconColor) ? "#ffffff" : iconColor;
 }

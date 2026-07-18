@@ -96,6 +96,7 @@
                TotalPointCount="@_data.AllPoints.Count"
                Message="@StatusMessage"
                SelectedCoordinateStatus="@_pointEditor.SelectedCoordinateStatus"
+               CoordinateInput="@_coordinateInput"
                MapStyleOptions="@MapStyleOptions"
                SelectedMapStyleId="@SelectedMapStyle.Id"
                UseLargeMapLabels="@_appSettings.UseLargeMapLabels"
@@ -106,6 +107,9 @@
                OperationMessage="@_operation.Message"
                CanRetryOperation="@_operation.CanRetry"
                OnRetryOperation="RetryOperation"
+               CanSetCoordinate="@CanSetCoordinateFromInput"
+               OnCoordinateInputChanged="UpdateCoordinateInput"
+               OnSetCoordinate="SetCoordinateFromInput"
                OnOpenAdmin="OpenAdminPanel"
                AddPointDisabled="@IsAddPointDisabled"
                OnAddPoint="OpenNewPointPanel" />
@@ -144,6 +148,7 @@
     private readonly LibraryViewModel _library = new();
     private readonly UiOperationViewModel _operation = new();
     private string _stadiaApiKeyInput = string.Empty;
+    private string _coordinateInput = string.Empty;
     private bool _isAdminPanelOpen;
 
     private CollectionDocument? _collectionForm =>
@@ -192,6 +197,12 @@
 
     private bool IsAddPointDisabled =>
         !_pointEditor.CanOpenNewPoint(IsLibraryReady, ShellState.IsRightPanelOpen);
+
+    private bool CanSetCoordinateFromInput =>
+        IsLibraryReady &&
+        HasStadiaApiKey &&
+        !ShellState.IsRightPanelOpen &&
+        !string.IsNullOrWhiteSpace(_coordinateInput);
 
     private string StatusMessage =>
         $"Search: {(_search.IsActive ? "active" : "none")} | " +
@@ -409,6 +420,34 @@
     private void HandleMapClick(MapCoordinate coordinate)
     {
         _pointEditor.SelectCoordinate(coordinate, ShellState.IsRightPanelOpen);
+    }
+
+    private void UpdateCoordinateInput(string value)
+    {
+        _coordinateInput = value;
+    }
+
+    private async Task SetCoordinateFromInput()
+    {
+        if (!CanSetCoordinateFromInput)
+        {
+            return;
+        }
+
+        var result = MapCoordinateParser.ParseDecimalPair(_coordinateInput);
+        if (!result.IsSuccess || result.Coordinate is null)
+        {
+            _operation.SetError($"Coordinates could not be used. {result.ErrorMessage}");
+            return;
+        }
+
+        _pointEditor.SelectCoordinate(result.Coordinate, ShellState.IsRightPanelOpen);
+        _operation.SetSuccess("Coordinates selected.");
+
+        if (_mapWorkspace is not null)
+        {
+            await _mapWorkspace.CenterOnAsync(result.Coordinate.Latitude, result.Coordinate.Longitude);
+        }
     }
 
     private async Task HandlePointClick(Guid pointId)
